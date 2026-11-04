@@ -1,0 +1,51 @@
+purpose:
+  stands_in_for: Los endpoints de sesión del Blog Backend NestJS descritos por el propietario.
+  unblocks: Pruebas del frontend real con login, cookies, recarga, rutas privadas, logout y fallos, sin llamadas repetitivas a Heroku.
+assumptions:
+  - id: public-profile-and-cookie
+    status: supported
+    claim: Login correcto devuelve un perfil con ID numérico y establece jwt HttpOnly; el JWT no está en el JSON.
+    reason: El contrato del propietario y la comprobación real del login coinciden para la cuenta probada.
+    verification: El 2026-11-03 se observó POST login 200 en Heroku. Tras integrar Next se completó en Chromium login 200, carga del perfil correcto mediante la cookie y logout 204. No se guardaron credenciales ni tokens en archivos del proyecto.
+    source: postman/contracts/auth.openapi.yaml; src/lib/auth/handlers.ts; comprobación real en navegador del 2026-11-03 contra Heroku mediante Next en localhost:3016.
+    updated_at: '2026-11-03'
+  - id: production-cookie-configuration
+    status: conflicting
+    claim: La cookie emitida directamente por el despliegue de Nest incluye Secure en producción.
+    reason: La documentación indica Secure en producción, pero la primera comprobación directa lo encontró ausente. No se inspeccionaron las variables de Heroku.
+    verification: La comprobación directa del 2026-11-03 encontró HttpOnly, SameSite Strict, Max-Age 3600 y Path /, sin Secure; CORS devolvió localhost:3000 sin protocolo. En la comprobación posterior, Next en modo producción sí emitió su cookie con Secure, HttpOnly y SameSite Strict para localhost. Esto no confirma una corrección de Heroku.
+    source: Documentación del backend compartida por el propietario; prueba directa inicial de POST /api/v1/auth/login; src/lib/auth/cookie.ts.
+    updated_at: '2026-11-03'
+  - id: current-user-validates-session
+    status: supported
+    claim: GET me acepta la cookie jwt de una sesión válida y devuelve el perfil correspondiente.
+    reason: El recorrido real posterior al login cargó el perfil correcto usando la verificación de sesión del servidor Next.
+    verification: El 2026-11-03 Chromium llegó a /perfil con el nombre esperado después del login real. Las pruebas locales también verificaron recarga y perfiles independientes para dos usuarios. La caducidad y suspensión de cuentas solo se ejercitaron contra el mock, siguiendo el contrato proporcionado.
+    source: src/lib/auth/session.ts; tests/e2e/auth.spec.ts; postman/contracts/auth.openapi.yaml.
+    updated_at: '2026-11-03'
+  - id: logout-is-cookie-removal
+    status: supported
+    claim: Logout devuelve 204 y elimina la cookie; el contrato no promete revocar copias del JWT.
+    reason: El navegador verificó la eliminación de la cookie y el contrato explícitamente describe la ausencia de revocación.
+    verification: Logout real del 2026-11-03 devolvió 204 y dejó el navegador sin cookie jwt. No se intentó reutilizar un token real. El mock conserva la semántica de JWT no revocable y no ofrece registro ni reset.
+    source: postman/contracts/auth.openapi.yaml; tests/e2e/auth.spec.ts; postman/mocks/blog-auth/default.js.
+    updated_at: '2026-11-03'
+  - id: frontend-failure-handling
+    status: supported
+    claim: En los escenarios locales ejecutados, el frontend protege las rutas privadas y distingue credenciales incorrectas, suspensión, expiración y fallos del servicio.
+    reason: Se ejecutó Next compilado contra la simulación mediante HTTP real, y se observaron las respuestas y el estado del navegador.
+    verification: El 2026-11-03 pasaron 11 pruebas de Playwright, incluyendo cookie Secure/HttpOnly, recarga, logout, móvil, DTO y origen, aislamiento entre usuarios, contratos incompletos, error recuperable de me y de logout, y timeout de login sin reintentos. Se revisaron eventos request de la simulación para login, me y logout, con estados 200, 204, 401, 403 y 503. El primer intento tuvo dos fallos en selectores de pruebas por el anunciador accesible de Next; se corrigieron y la ejecución final pasó completa. También pasaron las 10 pruebas unitarias, lint, typecheck y build.
+    source: tests/e2e/auth.spec.ts; tests/auth.test.ts; playwright.config.ts; postman/mocks/blog-auth/default.js; ejecución final de npm run test:auth del 2026-11-03.
+    updated_at: '2026-11-03'
+  - id: mock-provenance
+    status: supported
+    claim: El mock local deriva del contrato del propietario y no de un mock publicado por el equipo del backend.
+    reason: Postman CLI no tenía una sesión autenticada; se omitió la búsqueda de mocks del propietario y se generó el mock desde el contrato local.
+    verification: Se generó con postman mock generate y se adaptó para cookies, respuestas de error y demora. La simulación se ejecutó en un puerto local porque fetch de Node no se configuró para un proxy HTTP. No se publicaron recursos ni se registraron eventos en un workspace.
+    source: postman/contracts/auth.openapi.yaml; postman/mocks/blog-auth/config.yaml; postman/mocks/blog-auth/default.js; playwright.config.ts.
+    updated_at: '2026-11-03'
+fingerprints:
+  - id: auth-integration-2026-11-03
+    date: '2026-11-03'
+    commit: null
+    cli: '1.84.0'

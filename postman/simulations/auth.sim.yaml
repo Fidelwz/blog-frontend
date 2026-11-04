@@ -1,0 +1,7 @@
+simulation: blog-auth
+routing: path
+mocks:
+  - name: blog-auth
+    routeKey: blog-auth
+    origin: blog-backend-nest-542aed7d1eb3.herokuapp.com
+    path: postman/mocks/blog-auth

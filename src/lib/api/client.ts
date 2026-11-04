@@ -26,12 +26,14 @@ export function createApiClient(baseUrl: string, transport: typeof fetch = fetch
       ...init, headers, credentials: "include", cache: "no-store",
     });
     if (!response.ok) {
-      let body: Partial<ApiErrorBody> = {};
-      try { const parsed: unknown = await response.json(); if (parsed && typeof parsed === "object") body = parsed as Partial<ApiErrorBody>; } catch { /* Proxy o servicio sin respuesta JSON. */ }
+      let body: Partial<ApiErrorBody> & { message?: unknown } = {};
+      try { const parsed: unknown = await response.json(); if (parsed && typeof parsed === "object") body = parsed as typeof body; } catch { /* Proxy o servicio sin respuesta JSON. */ }
+      const message = typeof body.message === "string" ? body.message
+        : Array.isArray(body.message) ? body.message.filter((item): item is string => typeof item === "string").join(" ") : "";
       throw new ApiError({
         statusCode: response.status,
         error: typeof body.error === "string" ? body.error : "ApiError",
-        mensaje: typeof body.mensaje === "string" ? body.mensaje : "No pudimos completar la solicitud. Inténtalo de nuevo.",
+        mensaje: message || (typeof body.mensaje === "string" ? body.mensaje : "No pudimos completar la solicitud. Inténtalo de nuevo."),
         idCorrelacion: body.idCorrelacion,
       });
     }

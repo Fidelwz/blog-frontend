@@ -1,0 +1,72 @@
+openapi: 3.0.3
+info:
+  title: Blog Backend — sesión
+  version: 1.0.0
+  description: Subconjunto del contrato NestJS proporcionado por el propietario. No contiene credenciales reales.
+servers:
+  - url: https://blog-backend-nest-542aed7d1eb3.herokuapp.com/api/v1
+paths:
+  /auth/login:
+    post:
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: Perfil público; establece jwt HttpOnly, SameSite Strict, Path /, una hora; Secure en producción.
+          headers:
+            Set-Cookie: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Suspended' }
+  /auth/me:
+    get:
+      operationId: currentUser
+      security: [{ session: [] }]
+      responses:
+        '200':
+          description: Perfil público de la sesión activa.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Suspended' }
+  /auth/logout:
+    post:
+      operationId: logout
+      responses:
+        '204':
+          description: Sin cuerpo; elimina la cookie, sin revocar copias del JWT.
+          headers:
+            Set-Cookie: { schema: { type: string } }
+components:
+  securitySchemes:
+    session: { type: apiKey, in: cookie, name: jwt }
+  responses:
+    Invalid: { description: Cuerpo no válido. }
+    Unauthorized: { description: Credenciales incorrectas o sesión ausente, inválida o vencida. }
+    Suspended: { description: Cuenta suspendida; en login se comprueba primero la contraseña. }
+  schemas:
+    User:
+      type: object
+      required: [id, firstName, lastName, email, role, status, photoUrl]
+      properties:
+        id: { type: integer, example: 42 }
+        firstName: { type: string, example: Ana }
+        lastName: { type: string, example: Pruebas }
+        email: { type: string, format: email, example: ana@example.test }
+        role: { type: string, enum: [usuario, administrador], example: usuario }
+        status: { type: string, enum: [activo, suspendido], example: activo }
+        photoUrl: { type: string, nullable: true, example: null }

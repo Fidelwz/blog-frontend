@@ -1,5 +1,6 @@
-import { redirect } from "next/navigation";
-import { ProfileForm } from "@/features/profile/profile-form";
-import { DEMO_MODE } from "@/lib/demo";
-export const metadata = { title: "Mi perfil · Vista previa" };
-export default function Profile() { if (!DEMO_MODE) redirect("/acceso"); return <ProfileForm/>; }
+import { ProfileDetails } from "@/features/profile/profile-details";
+import { requireUser } from "@/lib/auth/session";
+export const metadata = { title: "Mi perfil" };
+export default async function Profile() {
+  return <ProfileDetails user={await requireUser("/perfil")}/>;
+}

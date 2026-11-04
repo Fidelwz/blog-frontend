@@ -1,0 +1,15 @@
+version: 1
+name: blog-auth
+slug: blog-auth
+protocol: http
+port: 4500
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true
+generatedFrom:
+  type: spec
+  mode: static
+  path: ../../contracts/auth.openapi.yaml
+interceptRequests: true
+origin: blog-backend-nest-542aed7d1eb3.herokuapp.com
