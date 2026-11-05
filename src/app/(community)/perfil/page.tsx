@@ -1,6 +1,7 @@
 import { ProfileDetails } from "@/features/profile/profile-details";
-import { requireUser } from "@/lib/auth/session";
+import { requireUser } from "@/features/auth/server";
 export const metadata = { title: "Mi perfil" };
 export default async function Profile() {
-  return <ProfileDetails user={await requireUser("/perfil")}/>;
+  await requireUser("/perfil");
+  return <ProfileDetails/>;
 }

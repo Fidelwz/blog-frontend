@@ -1,6 +1,6 @@
 import "server-only";
-import { ApiError } from "../api/client.ts";
-import { parseAuthUser } from "./contracts.ts";
+import { ApiError } from "../../../lib/api/client.ts";
+import { parseAuthUser } from "../types.ts";
 import { SESSION_COOKIE, validCookieValue } from "./cookie.ts";
 
 export function authError(status: number, mensaje: string) {

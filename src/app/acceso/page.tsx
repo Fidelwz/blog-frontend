@@ -1,11 +1,13 @@
-import { AuthForm } from "@/features/auth/auth-form";
+import { LoginForm } from "@/features/auth";
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth/session";
-import { safeReturnPath } from "@/lib/auth/contracts";
+import { getSession } from "@/features/auth/server";
+import { safeReturnPath } from "@/features/auth/utils";
 export const metadata = { title: "Iniciar sesión" };
-export default async function Login({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
-  const next = safeReturnPath((await searchParams).next);
+export default async function Login({ searchParams }: { searchParams: Promise<{ next?: string; notice?: string }> }) {
+  const params = await searchParams;
+  const next = safeReturnPath(params.next);
   const session = await getSession();
   if (session.status === "authenticated") redirect(next);
-  return <AuthForm mode="login" returnTo={next} sessionStatus={session.status}/>;
+  const notice = params.notice === "expired" || params.notice === "suspended" ? params.notice : null;
+  return <LoginForm returnTo={next} initialNotice={notice}/>;
 }

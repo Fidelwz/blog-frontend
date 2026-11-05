@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseAuthUser, safeReturnPath } from "../src/lib/auth/contracts.ts";
-import { readSessionCookie } from "../src/lib/auth/cookie.ts";
+import { parseAuthUser } from "../src/features/auth/types.ts";
+import { safeReturnPath } from "../src/features/auth/utils.ts";
+import { readSessionCookie } from "../src/features/auth/server/cookie.ts";
 import { ApiError, createApiClient } from "../src/lib/api/client.ts";
 
 test("el perfil conserva los enums e ID numérico, y excluye campos privados", () => {

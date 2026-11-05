@@ -124,7 +124,10 @@ test("un servicio lento tiene límite de espera y no reintenta el login", async 
   await page.getByLabel("Contraseña", { exact: true }).fill(credentials.password);
   let submissions = 0;
   page.on("request", request => { if (request.url().endsWith("/api/auth/login")) submissions++; });
-  await page.getByRole("button", { name: "Iniciar sesión" }).click();
+  await page.locator("form").evaluate(form => {
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  });
   await expect(page.getByRole("button", { name: "Iniciando sesión…" })).toBeDisabled();
   await page.locator("form").evaluate(form => form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
   await expect(page.locator(".alert-error")).toContainText("tardó demasiado", { timeout: 20_000 });

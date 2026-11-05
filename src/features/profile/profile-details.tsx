@@ -1,8 +1,11 @@
-import type { AuthUser } from "@/lib/auth/contracts";
-import { userInitials } from "@/lib/auth/contracts";
+"use client";
+import { useSession, userInitials } from "@/features/auth";
 import { Alert, Field } from "@/components/ui/primitives";
 
-export function ProfileDetails({ user }: { user: AuthUser }) {
+export function ProfileDetails() {
+  const { session } = useSession();
+  const user = session.user;
+  if (!user) return null;
   return <>
     <div className="page-heading"><span className="eyebrow">TU ESPACIO EN LA COMUNIDAD</span><h1>Mi perfil</h1><p>Estos son los datos de tu cuenta.</p></div>
     <div className="profile-layout">

@@ -1,2 +1,2 @@
-export { login as POST } from "@/lib/auth/handlers";
+export { login as POST } from "@/features/auth/server";
 export const runtime = "nodejs";

@@ -1,2 +1,2 @@
-export { me as GET } from "@/lib/auth/handlers";
+export { me as GET } from "@/features/auth/server";
 export const runtime = "nodejs";

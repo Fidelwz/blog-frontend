@@ -1,7 +1,7 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
-import { ApiError } from "../api/client.ts";
-import { isEmail } from "../validation.ts";
+import { ApiError } from "../../../lib/api/client.ts";
+import { isEmail } from "../../../lib/validation.ts";
 import { authError, backendAuth, backendUser } from "./backend.ts";
 import { readSessionCookie, sessionCookieOptions, SESSION_COOKIE, validCookieValue } from "./cookie.ts";
 
