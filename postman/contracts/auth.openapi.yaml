@@ -1,8 +1,13 @@
 openapi: 3.0.3
 info:
   title: Blog Backend — sesión
-  version: 1.0.0
-  description: Subconjunto del contrato NestJS proporcionado por el propietario. No contiene credenciales reales.
+  version: 1.0.1
+  description: >-
+    Subconjunto del contrato NestJS proporcionado por el propietario, con los aliases
+    user/active observados en el login de Heroku durante el diagnóstico de noviembre de 2026.
+    Se conservan los valores originales en español por compatibilidad; otros aliases en
+    inglés no han sido confirmados. Next normaliza user/active a usuario/activo antes de
+    entregar el perfil a su cliente. No contiene credenciales reales.
 servers:
   - url: https://blog-backend-nest-542aed7d1eb3.herokuapp.com/api/v1
 paths:
@@ -67,6 +72,6 @@ components:
         firstName: { type: string, example: Ana }
         lastName: { type: string, example: Pruebas }
         email: { type: string, format: email, example: ana@example.test }
-        role: { type: string, enum: [usuario, administrador], example: usuario }
-        status: { type: string, enum: [activo, suspendido], example: activo }
+        role: { type: string, enum: [user, usuario, administrador], example: user }
+        status: { type: string, enum: [active, activo, suspendido], example: active }
         photoUrl: { type: string, nullable: true, example: null }

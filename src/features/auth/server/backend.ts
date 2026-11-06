@@ -1,6 +1,6 @@
 import "server-only";
 import { ApiError } from "../../../lib/api/client.ts";
-import { parseAuthUser } from "../types.ts";
+import { parseBackendAuthUser } from "./profile.ts";
 import { SESSION_COOKIE, validCookieValue } from "./cookie.ts";
 
 export function authError(status: number, mensaje: string) {
@@ -48,7 +48,7 @@ export async function backendAuth(path: "login" | "me" | "logout", options: { co
 
 export async function backendUser(response: Response) {
   try {
-    const user = parseAuthUser(await response.json());
+    const user = parseBackendAuthUser(await response.json());
     if (user.status === "suspendido") throw authError(403, "Tu cuenta está suspendida. Comunícate con el administrador.");
     return user;
   } catch (error) {

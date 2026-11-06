@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseAuthUser } from "../src/features/auth/types.ts";
+import { parseBackendAuthUser } from "../src/features/auth/server/profile.ts";
 import { safeReturnPath } from "../src/features/auth/utils.ts";
 import { readSessionCookie } from "../src/features/auth/server/cookie.ts";
 import { ApiError, createApiClient } from "../src/lib/api/client.ts";
@@ -10,6 +11,37 @@ test("el perfil conserva los enums e ID numérico, y excluye campos privados", (
   assert.deepEqual(parseAuthUser({ ...profile, passwordHash: "secret", jwt: "secret" }), profile);
   assert.throws(() => parseAuthUser({ ...profile, id: "42" }));
   assert.throws(() => parseAuthUser({ ...profile, role: "admin" }));
+});
+
+test("el adaptador acepta user/active de Heroku y mantiene el contrato interno", () => {
+  const upstream = { id: 42, firstName: "Ana", lastName: "Pruebas", email: "ana@example.test", role: "user", status: "active", photoUrl: null, jwt: "private", passwordHash: "private" };
+  assert.deepEqual(parseBackendAuthUser(upstream), {
+    id: 42, firstName: "Ana", lastName: "Pruebas", email: "ana@example.test",
+    role: "usuario", status: "activo", photoUrl: null,
+  });
+  assert.equal(upstream.role, "user");
+  assert.equal(upstream.status, "active");
+  // Browser clients still receive only the canonical, public representation.
+  assert.throws(() => parseAuthUser(upstream));
+});
+
+test("el adaptador conserva los roles y estados del contrato original", () => {
+  for (const role of ["usuario", "administrador"]) {
+    for (const status of ["activo", "suspendido"]) {
+      const profile = { id: 42, firstName: "Ana", lastName: "Pruebas", email: "ana@example.test", role, status, photoUrl: null };
+      assert.deepEqual(parseBackendAuthUser(profile), profile);
+    }
+  }
+});
+
+test("el adaptador no asigna permisos ni estado activo a valores desconocidos", () => {
+  const profile = { id: 42, firstName: "Ana", lastName: "Pruebas", email: "ana@example.test", role: "user", status: "active", photoUrl: null };
+  for (const invalid of [
+    null, [], {}, { user: profile }, { ...profile, id: "42" },
+    { ...profile, role: "superadmin" }, { ...profile, role: "admin" },
+    { ...profile, status: "inactive" }, { ...profile, status: undefined },
+    { ...profile, photoUrl: undefined },
+  ]) assert.throws(() => parseBackendAuthUser(invalid));
 });
 
 test("el retorno del login rechaza destinos externos, variantes codificadas y bucles", () => {

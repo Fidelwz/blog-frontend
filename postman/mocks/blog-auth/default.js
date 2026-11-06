@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-// Local-only model of the owner's documented auth contract. No real credentials.
+// Local model: Ana reproduces Heroku's observed user/active; Bruno keeps the original contract.
 const http = require('node:http');
 const users = {
-  ana: { id: 42, firstName: 'Ana', lastName: 'Pruebas', email: 'ana@example.test', role: 'usuario', status: 'activo', photoUrl: null },
+  ana: { id: 42, firstName: 'Ana', lastName: 'Pruebas', email: 'ana@example.test', role: 'user', status: 'active', photoUrl: null },
   bob: { id: 43, firstName: 'Bruno', lastName: 'Pruebas', email: 'bob@example.test', role: 'administrador', status: 'activo', photoUrl: null },
 };
 const password = 'SimulationPassword123!';

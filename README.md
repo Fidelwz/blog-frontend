@@ -1,6 +1,6 @@
 # Blog Interactivo Estudiantil
 
-Next.js 16, React 19, TypeScript, Tailwind CSS 4, Zustand 5 y TanStack Query 5. El acceso se integra con el backend NestJS: login, perfil actual, sesión al recargar y logout. Las publicaciones conservan sus datos de demostración.
+Next.js 16, React 19, TypeScript, Tailwind CSS 4, Zustand 5, TanStack Query 5 y shadcn/ui con Radix. El acceso se integra con el backend NestJS: login, perfil actual, sesión al recargar y logout. Las publicaciones conservan sus datos de demostración.
 
 ## Arranque local
 
@@ -26,6 +26,7 @@ BACKEND_API_URL=https://blog-backend-nest-542aed7d1eb3.herokuapp.com/api/v1
 El navegador llama a `/api/auth/login`, `/api/auth/me` y `/api/auth/logout` en Next. Los Route Handlers llaman a los endpoints `/api/v1/auth/*` de Nest desde el servidor. Esto permite trabajar con Heroku manteniendo la cookie `SameSite=Strict`, sin depender de cookies entre sitios distintos.
 
 - Login envía exclusivamente `email` y `password`; devuelve un perfil público con ID numérico.
+- El adaptador `src/features/auth/server/profile.ts` convierte los valores `user` y `active` observados en Heroku a `usuario` y `activo`. También acepta los valores originales en español. Login y `/me` entregan al navegador el mismo contrato interno; roles, estados y perfiles desconocidos siguen siendo rechazados.
 - Next recibe `Set-Cookie` y establece únicamente `jwt` para el host del frontend: HttpOnly, SameSite Strict, Path `/`, Secure en producción. Respeta el vencimiento recibido y limita la duración a una hora. No necesita `JWT_SECRET` ni firma tokens.
 - La sesión se verifica contra `/me` en el servidor. Las consultas se deduplican dentro de cada render, nunca entre usuarios. Las respuestas HTTP y el fetch del servidor usan `no-store`; el navegador mantiene el perfil público en memoria mediante TanStack Query. `/me` no prolonga la cookie.
 - Login y logout comprueban `Origin`; en producción configurar `APP_ORIGIN` con el origen público exacto, por ejemplo `https://blog.example.com`, sin barra final.
@@ -63,6 +64,12 @@ Para los compañeros que implementen nuevas features:
 
 El [plan de migración](docs/plan-migracion-auth.md) conserva el diagnóstico original y documenta las decisiones aplicadas.
 
+## Interfaz compartida
+
+Todas las vistas actuales usan la base de shadcn/ui: formularios de acceso, registro y recuperación; navegación y menú de cuenta; perfil; publicaciones y búsqueda; módulos pendientes y estados de carga, error y página inexistente. Se conservan los colores, los layouts y las ilustraciones del blog. Los componentes reutilizables están en `src/components/ui`, con composiciones comunes en `src/components` y la lógica en `src/features`.
+
+La [guía de componentes](docs/componentes-ui.md) explica la estructura, los controles disponibles, el tema y cómo agregar componentes. Se eliminó `ui/primitives.tsx`; usar `Button` de shadcn, `FormField` y `Notice`. Esta migración mantiene Zustand, TanStack Query y el intermediario de autenticación de Next.
+
 ## Alcance actual
 
 `/perfil` muestra el nombre, correo y rol reales en modo lectura. Registro, recuperación de contraseña, edición del perfil y el resto de módulos siguen pendientes. Sus formularios previos no realizan operaciones reales. Los enlaces principales de acceso indican esas funciones pendientes; el envío de correo de recuperación todavía debe implementarse en Nest.
@@ -82,11 +89,15 @@ pnpm exec playwright install chromium
 npm run test:auth
 ```
 
-`test:auth` requiere Postman CLI (verificado con 1.84.0). Arranca automáticamente una simulación en el puerto 4020 y la compilación de Next en 3015; ambos puertos deben estar libres. No usa Heroku ni credenciales reales, no publica recursos y no necesita una cuenta de Postman. Cierra los servidores al finalizar. Playwright verifica cookies, login/recarga/logout, rutas privadas, errores, aislamiento SSR, hidratación sin duplicados, revalidación compartida, varias pestañas, cambio de cuenta con historial, móvil y tiempos de espera.
+`test:auth` requiere Postman CLI (verificado con 1.84.0). Arranca automáticamente una simulación en el puerto 4020 y la compilación de Next en 3015; ambos puertos deben estar libres. No usa Heroku ni credenciales reales, no publica recursos y no necesita una cuenta de Postman. Cierra los servidores al finalizar. Playwright verifica cookies, login/recarga/logout, rutas privadas, errores, aislamiento SSR, hidratación sin duplicados, revalidación compartida, varias pestañas, cambio de cuenta con historial, móvil y tiempos de espera. También verifica navegación por teclado en menús, diálogos y filtros, consentimiento del registro, validaciones de vista previa, búsqueda y módulos pendientes. `npm run test:ui` ejecuta únicamente estos escenarios de interfaz.
 
 El contrato está en `postman/contracts/auth.openapi.yaml`. El mock se generó desde ese contrato y se adaptó para modelar cookies y fallos. `postman/simulations/auth.context.yaml` registra evidencia y límites de la simulación. No regenerar el handler sin conservar esas adaptaciones.
 
 Migración verificada el 2026-11-03: lint, tipos y build correctos; 17 pruebas unitarias y 19 pruebas de integración correctas. Se comprobó además un único recorrido real en Chromium con Heroku: login `200`, carga del perfil mediante la sesión SSR y logout `204`, confirmando los atributos de la cookie emitida por Next y su eliminación. El navegador hizo un login, un logout y ninguna petición adicional a `/api/auth/me` durante ese recorrido. Los casos de error se probaron con la simulación.
+
+Corrección del perfil verificada el 2026-11-05: el diagnóstico real encontró `role: "user"` y `status: "active"` en Heroku, distintos del contrato original. Se realizaron dos peticiones de login para identificar la diferencia; la validación del arreglo se hizo después únicamente con la simulación. Pasaron 20 pruebas unitarias, 19 de navegador, lint, tipos y build. El mock reproduce los valores observados para Ana y conserva el formato original para Bruno. No se verificó el despliegue de Vercel ni se volvió a consultar `/me` en Heroku durante este diagnóstico. Para aplicar el arreglo es necesario publicar el código actualizado, incluidos `src/features/auth/server/backend.ts` y el nuevo `src/features/auth/server/profile.ts`.
+
+Migración a shadcn/ui verificada el 2026-11-05 (hora de El Salvador): lint, tipos, build y 20 pruebas unitarias correctas; la ejecución final de Playwright pasó las 26 pruebas de autenticación e interfaz. Se revisaron capturas de escritorio y móvil. Los escenarios se ejecutaron solo con la simulación local; no se hicieron solicitudes a Heroku ni se desplegó en Vercel. La guía de componentes incluye los archivos y dependencias que deben acompañar el próximo despliegue.
 
 Para una sesión manual con la simulación, en terminales separadas:
 

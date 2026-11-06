@@ -58,6 +58,34 @@ assumptions:
     verification: El 2026-11-03 se observó login 200, el nombre esperado en /perfil mediante la comprobación SSR y logout 204. La cookie de Next tenía HttpOnly, Secure y SameSite Strict, no era visible con document.cookie y desapareció al salir. El navegador emitió un login, un logout y cero llamadas a /api/auth/me. No se repitieron errores contra Heroku ni se comprobó de nuevo su cookie directa o su configuración CORS. No se guardaron credenciales o tokens reales en el proyecto.
     source: Recorrido real de Chromium del 2026-11-03 contra Next localhost:3016 y blog-backend-nest-542aed7d1eb3.herokuapp.com; src/features/auth/server/session.ts; src/features/auth/mutations.ts; fingerprint auth-query-zustand-2026-11-03.
     updated_at: '2026-11-03'
+  - id: backend-profile-enum-drift
+    status: conflicting
+    claim: Los enums del perfil devuelto por Heroku coinciden con los valores en español del contrato original.
+    reason: La documentación del propietario y el esquema Prisma disponible describen usuario/activo, pero el login del despliegue actual devolvió user/active. El parser original rechazó esa respuesta con HTTP 200.
+    verification: Durante este diagnóstico se hicieron dos POST al login real con la cuenta previamente autorizada. La primera comprobación confirmó HTTP 200, JSON, campos y tipos presentes, cookie jwt y rechazo del parser; la segunda identificó role user, status active e ID entero positivo. No se guardaron perfiles, credenciales ni tokens reales en el repositorio. La observación no confirma otros aliases ingleses ni todos los tipos de cuenta del backend.
+    source: POST https://blog-backend-nest-542aed7d1eb3.herokuapp.com/api/v1/auth/login; /tmp/blog-auth-profile-diagnostic.json (diagnóstico local sin credenciales); documentación inicial del propietario; postman/contracts/auth.openapi.yaml.
+    updated_at: '2026-11-05'
+  - id: backend-profile-alias-adapter
+    status: supported
+    claim: En los escenarios locales ejecutados, Next adapta user/active al perfil interno usuario/activo para login y me, preservando la compatibilidad con los valores originales y la validación estricta.
+    reason: El adaptador se aplica en backendUser, compartido por login, me y las comprobaciones SSR. La simulación reproduce user/active para Ana y el formato español para Bruno.
+    verification: El 2026-11-05 pasaron 20 pruebas unitarias y 19 de Playwright con Next compilado contra la simulación, además de lint, typecheck y build. Las aserciones comprobaron los perfiles normalizados de login y me, carga SSR, recarga, logout y aislamiento entre usuarios. Las pruebas unitarias verificaron exclusión de campos privados, preservación de suspensión y rechazo de roles/estados desconocidos. El log local contiene peticiones de login, me y logout, con respuestas 200, 204 y errores simulados. Evidencia sobre el árbol modificado indicado en auth-profile-aliases-2026-11-05, sin commit nuevo. No se desplegó ni comprobó Vercel.
+    source: src/features/auth/server/profile.ts; src/features/auth/server/backend.ts; tests/auth.test.ts; tests/e2e/auth.spec.ts; postman/mocks/blog-auth/default.js; /tmp/blog-auth-profile-e2e.log (log temporal local).
+    updated_at: '2026-11-05'
+  - id: current-me-enum-format
+    status: unknown
+    claim: El me actual de Heroku devuelve los mismos valores de rol y estado que su login actual.
+    reason: El contrato original promete el mismo formato, pero se observó una diferencia de enums en el login y no se volvió a consultar me para limitar las peticiones reales. La simulación modela ambos con el mismo perfil.
+    verification: La corrección acepta los valores originales y los aliases user/active observados, y ambos recorridos pasan localmente. Falta confirmar me con una sesión válida en el despliegue actualizado; el recorrido real exitoso del 2026-11-03 es evidencia histórica y no establece el formato actual.
+    source: postman/contracts/auth.openapi.yaml; postman/mocks/blog-auth/default.js; src/features/auth/server/backend.ts; comprobaciones reales de login de este diagnóstico.
+    updated_at: '2026-11-05'
+  - id: shadcn-ui-session-regression
+    status: supported
+    claim: En los escenarios locales ejecutados, las vistas migradas a shadcn/ui conservan el login, la sesión compartida y el logout, junto con las interacciones de formularios y navegación.
+    reason: Next compilado se ejecutó contra la simulación existente mediante HTTP real. Zustand sigue controlando el menú y TanStack Query conserva la sesión; no se cambió el contrato ni el mock para esta migración visual.
+    verification: El 2026-11-05, hora de El Salvador, pasaron lint, tipos, build, 20 pruebas unitarias y las 26 pruebas finales de Playwright. Se comprobaron recarga, aislamiento SSR, revalidación, varias pestañas, expiración, errores y logout con reintento. La suite nueva comprobó foco y Escape del diálogo, navegación del menú y filtros con teclado, consentimiento y validaciones de vista previa sin POST, búsqueda, paginación, lectura y vistas móviles. Se revisaron capturas de escritorio y móvil y eventos request de login, me y logout. Las ejecuciones iniciales detectaron esperas y selectores de prueba que se adaptaron al foco y los nombres accesibles de Radix. No se hicieron solicitudes a Heroku ni se publicó en Vercel. Evidencia sobre el árbol modificado, sin commit nuevo.
+    source: tests/e2e/ui.spec.ts; tests/e2e/auth.spec.ts; tests/e2e/auth-state.spec.ts; src/components; src/features; docs/componentes-ui.md; /tmp/blog-shadcn-final-e2e.log (log temporal local, marcas de tiempo UTC del 2026-11-06); playwright.config.ts.
+    updated_at: '2026-11-05'
 fingerprints:
   - id: auth-integration-2026-11-03
     date: '2026-11-03'
@@ -66,4 +94,12 @@ fingerprints:
   - id: auth-query-zustand-2026-11-03
     date: '2026-11-03'
     commit: '542443e99d3f3bb007fccd6908628a81429db2e5'
+    cli: '1.84.0'
+  - id: auth-profile-aliases-2026-11-05
+    date: '2026-11-05'
+    commit: '61ededc4761dd0c80e297e97f60772c0b339a539'
+    cli: '1.84.0'
+  - id: shadcn-ui-2026-11-05
+    date: '2026-11-05'
+    commit: '61ededc4761dd0c80e297e97f60772c0b339a539'
     cli: '1.84.0'

@@ -12,7 +12,7 @@ async function login(page: Page, email = "ana@example.test") {
 }
 async function signOut(page: Page, name: string) {
   await page.getByRole("button", { name: `Menú de ${name} Pruebas` }).click();
-  await page.getByRole("button", { name: "Cerrar sesión", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Cerrar sesión", exact: true }).click();
 }
 async function revalidateOnFocus(page: Page) {
   await page.clock.setSystemTime(Date.now() + 61_000);

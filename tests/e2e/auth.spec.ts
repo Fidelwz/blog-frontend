@@ -22,7 +22,7 @@ test("login, recarga, perfil público y logout con cookie HttpOnly", async ({ pa
   await page.goto("/");
   await expect(page.getByRole("button", { name: /Ana Pruebas/ })).toBeVisible();
   await page.getByRole("button", { name: /Ana Pruebas/ }).click();
-  await page.getByRole("button", { name: "Cerrar sesión", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Cerrar sesión", exact: true }).click();
   await expect(page).toHaveURL(`${origin}/acceso`);
   expect((await context.cookies()).some(c => c.name === "jwt")).toBe(false);
   await page.goto("/perfil");
@@ -90,7 +90,9 @@ test("endpoints locales aplican origen, DTO y respuestas vacías", async ({ requ
   expect(success.headers()["cache-control"]).toContain("no-store");
   expect(await success.json()).toMatchObject({ id: 42, role: "usuario", status: "activo" });
   expect(await success.text()).not.toContain("mock.ana.session");
-  expect((await request.get("/api/auth/me")).status()).toBe(200);
+  const current = await request.get("/api/auth/me");
+  expect(current.status()).toBe(200);
+  expect(await current.json()).toMatchObject({ id: 42, role: "usuario", status: "activo" });
   const out = await request.post("/api/auth/logout", { headers });
   expect(out.status()).toBe(204);
   expect(await out.text()).toBe("");
@@ -104,8 +106,8 @@ test("sesiones de usuarios distintos no comparten caché", async ({ playwright }
     await first.post("/api/auth/login", { headers, data: credentials });
     await second.post("/api/auth/login", { headers, data: { ...credentials, email: "bob@example.test" } });
     const profiles = await Promise.all([first.get("/api/auth/me"), second.get("/api/auth/me")]);
-    expect((await profiles[0].json()).id).toBe(42);
-    expect((await profiles[1].json()).id).toBe(43);
+    expect(await profiles[0].json()).toMatchObject({ id: 42, role: "usuario", status: "activo" });
+    expect(await profiles[1].json()).toMatchObject({ id: 43, role: "administrador", status: "activo" });
   } finally { await first.dispose(); await second.dispose(); }
 });
 
@@ -151,11 +153,11 @@ test("logout fallido permite reintentar sin simular un cierre exitoso", async ({
   await page.goto("/perfil");
   await context.addCookies([{ name: "jwt", value: "mock.unavailable.session", url: origin, httpOnly: true, secure: true, sameSite: "Strict" }]);
   await page.getByRole("button", { name: /Ana Pruebas/ }).click();
-  await page.getByRole("button", { name: "Cerrar sesión", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Cerrar sesión", exact: true }).click();
   await expect(page.locator(".alert-error")).toContainText("no está disponible");
   await expect(page).toHaveURL(`${origin}/perfil`);
   expect((await context.cookies()).find(c => c.name === "jwt")?.value).toBe("mock.unavailable.session");
   await context.addCookies([{ name: "jwt", value: "mock.ana.session", url: origin, httpOnly: true, secure: true, sameSite: "Strict" }]);
-  await page.getByRole("button", { name: "Cerrar sesión", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Cerrar sesión", exact: true }).click();
   await expect(page).toHaveURL(`${origin}/acceso`);
 });
