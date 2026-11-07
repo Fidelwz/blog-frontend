@@ -51,7 +51,7 @@ test("el campo compartido conserva contraseña, etiqueta, foco y descripción de
   expect(logins).toBe(0);
 });
 
-test("el registro de vista previa exige consentimiento accesible y no llama al backend", async ({
+test("el registro exige consentimiento accesible antes de crear la cuenta", async ({
   page,
 }, testInfo) => {
   const writes: string[] = [];
@@ -61,7 +61,7 @@ test("el registro de vista previa exige consentimiento accesible y no llama al b
   await page.goto("/registro");
   await page.getByLabel("Nombre", { exact: true }).fill("Ana");
   await page.getByLabel("Apellido", { exact: true }).fill("Pruebas");
-  await page.getByLabel("Correo electrónico").fill("ana@example.test");
+  await page.getByLabel("Correo electrónico").fill(`ui-${Date.now()}@example.test`);
   await page
     .getByLabel("Contraseña", { exact: true })
     .fill("SimulationPassword123!");
@@ -72,19 +72,20 @@ test("el registro de vista previa exige consentimiento accesible y no llama al b
   });
   await expect(consent).toBeFocused();
   await expect(consent).toHaveAttribute("aria-invalid", "true");
+  expect(writes).toEqual([]);
   await page.keyboard.press("Space");
   await expect(consent).toBeChecked();
   await page.getByRole("button", { name: "Crear cuenta", exact: true }).click();
-  await expect(page.getByText("Validación completada.")).toBeVisible();
-  await expect(page.getByText(/No se ha creado una cuenta/)).toBeVisible();
-  expect(writes).toEqual([]);
+  await expect(page).toHaveURL(/\/acceso\?registro=ok$/);
+  await expect(page.getByText("Cuenta creada. Inicia sesión.")).toBeVisible();
+  expect(writes).toEqual([`${origin}/api/auth/register`]);
   await page.screenshot({
     path: testInfo.outputPath("registro-desktop.png"),
     fullPage: true,
   });
 });
 
-test("recuperación y restablecimiento conservan sus validaciones de vista previa", async ({
+test("recuperación y restablecimiento completan sus solicitudes", async ({
   page,
 }) => {
   const writes: string[] = [];
@@ -93,16 +94,17 @@ test("recuperación y restablecimiento conservan sus validaciones de vista previ
   });
   await page.goto("/recuperar");
   await page.getByLabel("Correo electrónico").fill("ana@example.test");
-  await page.getByRole("button", { name: "Validar solicitud" }).click();
-  await expect(page.getByText(/No se ha enviado un correo/)).toBeVisible();
+  await page.getByRole("button", { name: "Enviar instrucciones" }).click();
+  await expect(page.getByText("Si existe una cuenta con ese correo, recibirás instrucciones.")).toBeVisible();
   await page.goto(`/recuperar/${"a".repeat(43)}`);
   await page
     .getByLabel("Nueva contraseña", { exact: true })
     .fill("SimulationPassword123!");
   await page.getByLabel("Confirmar contraseña", { exact: true }).fill("SimulationPassword123!");
-  await page.getByRole("button", { name: "Validar contraseña" }).click();
-  await expect(page.getByText(/No se ha cambiado la contraseña/)).toBeVisible();
-  expect(writes).toEqual([]);
+  await page.getByRole("button", { name: "Restablecer contraseña" }).click();
+  await expect(page).toHaveURL(/\/acceso\?restablecida=ok$/);
+  await expect(page.getByText("Contraseña actualizada. Inicia sesión.")).toBeVisible();
+  expect(writes).toEqual([`${origin}/api/auth/forgot-password`, `${origin}/api/auth/reset-password`]);
 });
 
 test("publicaciones permiten cargar más, filtrar con teclado, buscar y leer", async ({

@@ -14,7 +14,9 @@ import {
   FieldLabel,
   FieldError,
 } from "@/components/ui/field";
-import { isEmail, passwordRules, validateRegistration } from "@/lib/validation";
+import { isEmail, isResetToken, passwordRules, validateRegistration } from "@/lib/validation";
+import { useRegister, useForgotPassword, useResetPassword } from "@/features/auth";
+import { ApiError } from "@/lib/api/client";
 
 type Mode = "register" | "recover" | "reset";
 const labels = {
@@ -22,12 +24,19 @@ const labels = {
   recover: "Recuperar contraseña",
   reset: "Restablecer contraseña",
 };
-export function AuthForm({ mode }: { mode: Mode }) {
+export function AuthForm({ mode, token = "" }: { mode: Mode; token?: string }) {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [validated, setValidated] = useState(false);
-  function submit(e: FormEvent<HTMLFormElement>) {
+  const registration = useRegister();
+  const recovery = useForgotPassword();
+  const reset = useResetPassword();
+  const mutation = mode === "register" ? registration : mode === "recover" ? recovery : reset;
+  const pending = mutation.pending;
+  const invalidLink = mode === "reset" && (!isResetToken(token) || (reset.error instanceof ApiError && reset.error.status === 410));
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (pending || invalidLink) return;
     const form = e.currentTarget;
     const data = new FormData(form);
     const text = (key: string) => String(data.get(key) || "");
@@ -50,7 +59,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         nextErrors.confirmacion = "Las contraseñas no coinciden.";
     }
     setErrors(nextErrors);
-    setValidated(!Object.keys(nextErrors).length);
+    setValidated(false);
     const firstError = Object.keys(nextErrors)[0];
     if (firstError) {
       (
@@ -59,10 +68,33 @@ export function AuthForm({ mode }: { mode: Mode }) {
       )?.focus();
       return;
     }
+    if (mode === "register") {
+      const success = await registration.submit({ firstName: text("nombre").trim(), lastName: text("apellido").trim(),
+        email: text("correo").trim().toLowerCase(), password });
+      setPassword("");
+      const confirmation = form.elements.namedItem("confirmacion") as HTMLInputElement | null;
+      if (confirmation) confirmation.value = "";
+      if (success) { form.reset(); window.location.replace("/acceso?registro=ok"); }
+    } else if (mode === "recover") {
+      const success = await recovery.submit({ email: text("correo").trim().toLowerCase() });
+      setValidated(success);
+      if (success) form.reset();
+    } else {
+      const success = await reset.submit({ token, newPassword: password });
+      setPassword("");
+      const confirmation = form.elements.namedItem("confirmacion") as HTMLInputElement | null;
+      if (confirmation) confirmation.value = "";
+      if (success) { form.reset(); window.location.replace("/acceso?restablecida=ok"); }
+    }
   }
+  if (invalidLink) return <AuthFrame mode="reset"><Notice kind="error">
+    <p>El enlace no es válido o ya venció. Solicita uno nuevo.</p>
+    <Link href="/recuperar">Solicitar un nuevo enlace</Link>
+  </Notice></AuthFrame>;
   return (
     <AuthFrame mode={mode}>
-      <form onSubmit={submit} noValidate onChange={() => setValidated(false)}>
+      <form onSubmit={submit} noValidate aria-busy={pending} onChange={() => { setValidated(false); if (!pending) mutation.reset(); }}>
+        <fieldset disabled={pending} className="min-w-0">
         {mode === "register" && (
           <div className="field-row">
             <FormField
@@ -102,6 +134,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             revealPassword
             placeholder="Escribe tu contraseña"
             autoComplete="new-password"
+            maxLength={72}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             error={errors.contrasena}
@@ -114,7 +147,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               aria-label="Requisitos de contraseña"
             >
               {[
-                "Mínimo 8 caracteres",
+                "De 8 a 72 caracteres (máx. 72 bytes)",
                 "Una mayúscula",
                 "Un número",
                 "Un símbolo",
@@ -138,6 +171,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               revealPassword
               placeholder="Repite tu contraseña"
               autoComplete="new-password"
+              maxLength={72}
               error={errors.confirmacion}
             />
           </>
@@ -166,33 +200,25 @@ export function AuthForm({ mode }: { mode: Mode }) {
         )}
         {mode === "recover" && (
           <p className="field-hint">
-            El flujo previsto utiliza un enlace de un solo uso con vigencia de
+            Recibirás un enlace de un solo uso con vigencia de
             30 minutos.
           </p>
         )}
-        <Button type="submit" className="h-11 w-full">
-          {mode === "recover"
-            ? "Validar solicitud"
+        {mutation.error && <Notice kind="error">{mutation.error instanceof ApiError ? mutation.error.message : "No pudimos completar la solicitud. Inténtalo de nuevo."}</Notice>}
+        <Button type="submit" className="h-11 w-full" disabled={pending}>
+          {pending ? "Enviando…" : mode === "recover"
+            ? "Enviar instrucciones"
             : mode === "reset"
-              ? "Validar contraseña"
+              ? "Restablecer contraseña"
               : labels[mode]}
           <Icon name="arrow" size={17} />
         </Button>
         {validated && (
           <Notice kind="success">
-            <strong>Validación completada.</strong>
-            <p>
-              Esta es una vista previa del frontend. No se ha{" "}
-              {mode === "register"
-                ? "creado una cuenta"
-                : mode === "recover"
-                  ? "enviado un correo"
-                  : "cambiado la contraseña"}
-              . La conexión con NestJS corresponde a la siguiente entrega.
-            </p>
-            <Link href="/">Explorar publicaciones de ejemplo →</Link>
+            Si existe una cuenta con ese correo, recibirás instrucciones.
           </Notice>
         )}
+        </fieldset>
       </form>
     </AuthFrame>
   );

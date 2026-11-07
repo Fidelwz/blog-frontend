@@ -1,6 +1,8 @@
 export const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254;
+export const isResetToken = (value: string) => value.length === 43 && /^[A-Za-z0-9_-]{43}$/.test(value);
 export function passwordRules(value: string) {
-  return [value.length >= 8, /[A-ZÁÉÍÓÚÑ]/.test(value), /\d/.test(value), /[^\p{L}\p{N}\s]/u.test(value)];
+  return [value.length >= 8 && value.length <= 72 && new TextEncoder().encode(value).length <= 72,
+    /\p{Lu}/u.test(value), /\d/.test(value), /[^\p{L}\p{N}\s]/u.test(value)];
 }
 export function validateRegistration(data: { nombre: string; apellido: string; correo: string; contrasena: string; confirmacion: string; acepta: boolean }) {
   const errors: Record<string, string> = {};

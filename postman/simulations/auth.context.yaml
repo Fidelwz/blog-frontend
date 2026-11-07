@@ -1,6 +1,6 @@
 purpose:
-  stands_in_for: Los endpoints de sesión del Blog Backend NestJS descritos por el propietario.
-  unblocks: Pruebas del frontend real con login, cookies, recarga, rutas privadas, logout y fallos, sin llamadas repetitivas a Heroku.
+  stands_in_for: Los endpoints de sesión, cuenta y perfil del Blog Backend NestJS descritos por el propietario.
+  unblocks: Pruebas locales de login, registro, recuperación, edición de perfil, foto, lectura pública, cookies y fallos, sin llamadas a Heroku.
 assumptions:
   - id: public-profile-and-cookie
     status: supported
@@ -86,7 +86,25 @@ assumptions:
     verification: El 2026-11-05, hora de El Salvador, pasaron lint, tipos, build, 20 pruebas unitarias y las 26 pruebas finales de Playwright. Se comprobaron recarga, aislamiento SSR, revalidación, varias pestañas, expiración, errores y logout con reintento. La suite nueva comprobó foco y Escape del diálogo, navegación del menú y filtros con teclado, consentimiento y validaciones de vista previa sin POST, búsqueda, paginación, lectura y vistas móviles. Se revisaron capturas de escritorio y móvil y eventos request de login, me y logout. Las ejecuciones iniciales detectaron esperas y selectores de prueba que se adaptaron al foco y los nombres accesibles de Radix. No se hicieron solicitudes a Heroku ni se publicó en Vercel. Evidencia sobre el árbol modificado, sin commit nuevo.
     source: tests/e2e/ui.spec.ts; tests/e2e/auth.spec.ts; tests/e2e/auth-state.spec.ts; src/components; src/features; docs/componentes-ui.md; /tmp/blog-shadcn-final-e2e.log (log temporal local, marcas de tiempo UTC del 2026-11-06); playwright.config.ts.
     updated_at: '2026-11-05'
+  - id: account-profile-contract
+    status: supported
+    claim: La simulación modela los endpoints de cuenta y perfil documentados, conservando las adaptaciones anteriores de sesión y fallos.
+    reason: El propietario confirmó la URL de Heroku y el despliegue en Vercel; pidió omitir la comprobación real con una cuenta y el envío de correo. No se dispone del código fuente del backend en este workspace.
+    verification: El 2026-11-06 (hora de El Salvador) pasaron lint, 31 pruebas unitarias, typecheck, build y las 35 pruebas de Playwright con Next compilado y Edge. Se amplió el contrato y el mock manualmente. pm.state conserva cuentas sintéticas, hashes de contraseñas de prueba, cambios de perfil y uso único de tokens. El BFF limita las fotos a 4 MiB por el límite de Vercel. La suite verifica persistencia, filtrado, DTO, origen, sesión y HTTP 404 para perfiles inválidos o inexistentes. La ruta pública usa el grupo (profiles) para evitar el streaming anticipado del loading de (community). No se consultó Heroku ni se desplegó en Vercel.
+    source: docs/TAREA_GABITO_CUENTA_Y_PERFIL.md; postman/contracts/auth.openapi.yaml; tests/account-profile.test.ts; tests/e2e/account-profile.spec.ts.
+    updated_at: '2026-11-06'
+  - id: account-profile-simulation-limits
+    status: unknown
+    claim: La simulación reproduce el envío real de correo, la expiración por tiempo y el procesamiento de imágenes en Cloudinary.
+    reason: El mock solo modela estados HTTP y persistencia sintética. La expiración usa un token fijo; la foto comprueba multipart con boundary y devuelve una URL ficticia. No se ejecutaron estas integraciones externas.
+    verification: Los tests interceptan las imágenes de images.example.test con un PNG local. Tokens a y r de 43 caracteres permiten un único reset; e representa vencimiento. Los límites de MIME y tamaño se verifican en el cliente y en el BFF.
+    source: postman/mocks/blog-auth/default.js; tests/e2e/account-profile.spec.ts; src/features/profile/photo.ts.
+    updated_at: '2026-11-06'
 fingerprints:
+  - id: account-profile-2026-11-06
+    date: '2026-11-06'
+    commit: null
+    cli: '1.86.0'
   - id: auth-integration-2026-11-03
     date: '2026-11-03'
     commit: null

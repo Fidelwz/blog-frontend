@@ -1,11 +1,13 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError } from "../../../lib/api/client.ts";
-import { isEmail } from "../../../lib/validation.ts";
+import { isEmail, isResetToken, passwordRules } from "../../../lib/validation.ts";
+import { accountBackend } from "./account-backend.ts";
+import { readJson } from "./request-body.ts";
 import { authError, backendAuth, backendUser } from "./backend.ts";
 import { readSessionCookie, sessionCookieOptions, SESSION_COOKIE, validCookieValue } from "./cookie.ts";
 
-function json(body: unknown, status = 200) {
+export function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
 }
 
@@ -14,14 +16,14 @@ function clearSession(response: NextResponse) {
   return response;
 }
 
-function errorResponse(error: unknown, clearInvalidSession = false) {
+export function errorResponse(error: unknown, clearInvalidSession = false) {
   const status = error instanceof ApiError ? error.status : 502;
   const message = error instanceof ApiError ? error.message : "No pudimos completar la solicitud. Inténtalo de nuevo.";
   const response = json({ statusCode: status, message }, status);
   return clearInvalidSession && (status === 401 || status === 403) ? clearSession(response) : response;
 }
 
-function requireSameOrigin(request: NextRequest) {
+export function requireSameOrigin(request: NextRequest) {
   const origin = request.headers.get("origin");
   const expected = process.env.APP_ORIGIN || new URL(request.url).origin;
   if (!origin || origin !== expected || request.headers.get("sec-fetch-site") === "cross-site") {
@@ -83,5 +85,59 @@ export async function logout(request: NextRequest) {
     const cookie = request.cookies.get(SESSION_COOKIE)?.value;
     if (cookie && validCookieValue(cookie)) await backendAuth("logout", { cookie });
     return clearSession(new NextResponse(null, { status: 204, headers: { "Cache-Control": "private, no-store" } }));
+  } catch (error) { return errorResponse(error); }
+}
+
+export async function register(request: NextRequest) {
+  try {
+    requireSameOrigin(request);
+    const body = await readJson(request, ["firstName", "lastName", "email", "password"]);
+    for (const key of ["firstName", "lastName"] as const) {
+      const value = body[key];
+      if (typeof value !== "string" || value.trim().length < 2 || value.trim().length > 80) {
+        throw authError(400, "Escribe entre 2 y 80 caracteres para nombre y apellido.");
+      }
+      body[key] = value.trim();
+    }
+    if (typeof body.email !== "string" || !isEmail(body.email.trim()) ||
+        typeof body.password !== "string" || !passwordRules(body.password).every(Boolean)) {
+      throw authError(400, "Revisa el correo y los requisitos de la contraseña.");
+    }
+    body.email = body.email.trim().toLowerCase();
+    try {
+      const upstream = await accountBackend("/auth/register", { method: "POST", body, expectedStatus: 201,
+        messages: { 409: "Ya existe una cuenta con ese correo." } });
+      await upstream.body?.cancel();
+      return json({ message: "Cuenta creada. Inicia sesión." }, 201);
+    } finally { body.password = ""; }
+  } catch (error) { return errorResponse(error); }
+}
+
+export async function forgotPassword(request: NextRequest) {
+  try {
+    requireSameOrigin(request);
+    const body = await readJson(request, ["email"]);
+    if (typeof body.email !== "string" || !isEmail(body.email.trim())) throw authError(400, "Escribe un correo electrónico válido.");
+    const upstream = await accountBackend("/auth/forgot-password", {
+      method: "POST", body: { email: body.email.trim().toLowerCase() }, expectedStatus: 202,
+    });
+    await upstream.body?.cancel();
+    return json({ message: "Si existe una cuenta con ese correo, recibirás instrucciones." }, 202);
+  } catch (error) { return errorResponse(error); }
+}
+
+export async function resetPassword(request: NextRequest) {
+  try {
+    requireSameOrigin(request);
+    const body = await readJson(request, ["token", "newPassword"]);
+    try {
+      const invalidLink = "El enlace no es válido o ya venció. Solicita uno nuevo.";
+      if (typeof body.token !== "string" || !isResetToken(body.token)) throw authError(410, invalidLink);
+      if (typeof body.newPassword !== "string" || !passwordRules(body.newPassword).every(Boolean)) {
+        throw authError(400, "Revisa los requisitos de la contraseña.");
+      }
+      await accountBackend("/auth/reset-password", { method: "POST", body, expectedStatus: 204, messages: { 410: invalidLink } });
+      return new NextResponse(null, { status: 204, headers: { "Cache-Control": "private, no-store" } });
+    } finally { body.token = ""; body.newPassword = ""; }
   } catch (error) { return errorResponse(error); }
 }

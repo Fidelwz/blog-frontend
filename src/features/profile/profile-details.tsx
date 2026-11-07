@@ -1,70 +1,18 @@
-"use client";
-import { useSession, userInitials } from "@/features/auth";
+﻿"use client";
+import { ApiError } from "@/lib/api/client";
 import { Notice } from "@/components/notice";
-import { FormField } from "@/components/form-field";
-
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { UserAvatar } from "@/components/user-avatar";
+import { Button } from "@/components/ui/button";
+import { ProfileForm } from "./profile-form";
+import { useProfile } from "./queries";
 
 export function ProfileDetails() {
-  const { session } = useSession();
-  const user = session.user;
-  if (!user) return null;
-  return (
-    <>
-      <div className="page-heading">
-        <span className="eyebrow">TU ESPACIO EN LA COMUNIDAD</span>
-        <h1>Mi perfil</h1>
-        <p>Estos son los datos de tu cuenta.</p>
-      </div>
-      <div className="profile-layout">
-        <Card className="profile-summary gap-0 ring-0">
-          <UserAvatar
-            initials={userInitials(user)}
-            photoUrl={user.photoUrl}
-            large
-          />
-          <h2>
-            {user.firstName} {user.lastName}
-          </h2>
-          <Badge variant="secondary" className="mx-auto mt-3">
-            {user.role === "administrador"
-              ? "Administrador"
-              : "Miembro de la comunidad"}
-          </Badge>
-          <p>Cuenta activa</p>
-        </Card>
-        <Card
-          className="profile-form gap-0 ring-0"
-          aria-labelledby="profile-heading"
-        >
-          <h2 id="profile-heading">Información personal</h2>
-          <p className="small muted">Información de tu cuenta registrada.</p>
-          <div className="field-row">
-            <FormField
-              label="Nombre"
-              name="firstName"
-              value={user.firstName}
-              readOnly
-            />
-            <FormField
-              label="Apellido"
-              name="lastName"
-              value={user.lastName}
-              readOnly
-            />
-          </div>
-          <FormField
-            label="Correo electrónico"
-            name="email"
-            type="email"
-            value={user.email}
-            readOnly
-          />
-          <Notice>La edición del perfil estará disponible próximamente.</Notice>
-        </Card>
-      </div>
-    </>
-  );
+  const { data, error, isFetching, refetch } = useProfile();
+  if (error instanceof ApiError && [401, 403].includes(error.status)) return <p role="status">Comprobando acceso…</p>;
+  return <>
+    {error && <Notice kind="error">
+      {error instanceof ApiError ? error.message : "No pudimos cargar tu perfil. Inténtalo de nuevo."}{" "}
+      <Button variant="link" disabled={isFetching} onClick={() => void refetch()}>Reintentar</Button>
+    </Notice>}
+    {data ? <ProfileForm key={data.id} profile={data}/> : !error && <p role="status">Cargando tu perfil…</p>}
+  </>;
 }

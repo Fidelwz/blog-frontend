@@ -1,11 +1,31 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { login, logout, type LoginCredentials } from "./api";
+import { useRef } from "react";
+import { login, logout, register, forgotPassword, resetPassword, type LoginCredentials } from "./api";
 import { acquireAuthMutation, cancelPrivateQueries, releaseAuthMutation, replaceSession } from "./cache";
 import { useAuthUiStore } from "./components/auth-provider";
 import { notifySessionChange } from "./sync";
 import { safeReturnPath } from "./utils";
+
+function useAccountMutation<T extends object>(key: string, mutationFn: (data: T) => Promise<void>, navigates = false) {
+  const busy = useRef(false);
+  const mutation = useMutation({ mutationKey: ["account", key], mutationFn, retry: false, gcTime: 0, networkMode: "always" });
+  async function submit(data: T) {
+    if (busy.current) return false;
+    busy.current = true;
+    try {
+      await mutation.mutateAsync({ ...data });
+      if (!navigates) busy.current = false;
+      return true;
+    } catch { busy.current = false; return false; }
+  }
+  return { submit, error: mutation.error, reset: mutation.reset, pending: mutation.isPending || (navigates && mutation.isSuccess) };
+}
+
+export function useRegister() { return useAccountMutation("register", register, true); }
+export function useForgotPassword() { return useAccountMutation("forgot-password", forgotPassword); }
+export function useResetPassword() { return useAccountMutation("reset-password", resetPassword, true); }
 
 export function useLogin(returnTo: string) {
   const client = useQueryClient();

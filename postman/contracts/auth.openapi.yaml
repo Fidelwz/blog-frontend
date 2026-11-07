@@ -1,13 +1,15 @@
 openapi: 3.0.3
 info:
-  title: Blog Backend — sesión
-  version: 1.0.1
+  title: Blog Backend — sesión, cuenta y perfil
+  version: 1.1.0
   description: >-
     Subconjunto del contrato NestJS proporcionado por el propietario, con los aliases
     user/active observados en el login de Heroku durante el diagnóstico de noviembre de 2026.
     Se conservan los valores originales en español por compatibilidad; otros aliases en
     inglés no han sido confirmados. Next normaliza user/active a usuario/activo antes de
-    entregar el perfil a su cliente. No contiene credenciales reales.
+    entregar el perfil a su cliente. Cuenta y perfil siguen el contrato de
+    docs/TAREA_GABITO_CUENTA_Y_PERFIL.md, sin verificación nueva en Heroku.
+    No contiene credenciales reales.
 servers:
   - url: https://blog-backend-nest-542aed7d1eb3.herokuapp.com/api/v1
 paths:
@@ -56,6 +58,154 @@ paths:
           description: Sin cuerpo; elimina la cookie, sin revocar copias del JWT.
           headers:
             Set-Cookie: { schema: { type: string } }
+  /auth/register:
+    post:
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [firstName, lastName, email, password]
+              properties:
+                firstName: { type: string, minLength: 2, maxLength: 80 }
+                lastName: { type: string, minLength: 2, maxLength: 80 }
+                email: { type: string, format: email, maxLength: 254 }
+                password: { $ref: '#/components/schemas/Password' }
+      responses:
+        '201':
+          description: Cuenta creada, sin iniciar sesión ni emitir cookie.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '409': { description: Correo ya registrado. }
+        '429': { description: Demasiados intentos. }
+  /auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+      responses:
+        '202':
+          description: Mismo mensaje exista o no la cuenta. Nunca devuelve un token.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message: { type: string }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '429': { description: Demasiados intentos. }
+  /auth/reset-password:
+    post:
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token, newPassword]
+              properties:
+                token: { type: string, minLength: 43, maxLength: 43, pattern: '^[A-Za-z0-9_-]{43}$', description: Un solo uso, vigencia de 30 minutos. }
+                newPassword: { $ref: '#/components/schemas/Password' }
+      responses:
+        '204': { description: Contraseña actualizada, sin cuerpo. }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '410': { description: Token inválido, vencido o utilizado. }
+        '429': { description: Demasiados intentos. }
+  /users/me:
+    get:
+      operationId: myProfile
+      security: [{ session: [] }]
+      responses:
+        '200':
+          description: Perfil privado, con campos internos que Next debe filtrar.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Suspended' }
+    patch:
+      operationId: updateProfile
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                firstName: { type: string, minLength: 2, maxLength: 80 }
+                lastName: { type: string, minLength: 2, maxLength: 80 }
+                major: { type: string, nullable: true, maxLength: 100 }
+                university: { type: string, nullable: true, maxLength: 120 }
+                bio: { type: string, nullable: true, maxLength: 500 }
+      responses:
+        '200':
+          description: Perfil actualizado; recorta espacios y elimina HTML.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Suspended' }
+  /users/me/photo:
+    put:
+      operationId: uploadPhoto
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: JPG o PNG de hasta 5 MB en Nest; el BFF limita a 4 MB para Vercel. }
+      responses:
+        '200':
+          description: Perfil con nueva foto.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '400': { $ref: '#/components/responses/Invalid' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Suspended' }
+        '413': { description: Archivo demasiado grande. }
+        '415': { description: Formato no admitido. }
+        '502': { description: Fallo al guardar en Cloudinary. }
+  /users/{id}:
+    get:
+      operationId: publicProfile
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Perfil público sin email ni datos internos; cuenta solo publicaciones visibles.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicProfile' }
+        '404': { description: Usuario inexistente. }
 components:
   securitySchemes:
     session: { type: apiKey, in: cookie, name: jwt }
@@ -64,6 +214,42 @@ components:
     Unauthorized: { description: Credenciales incorrectas o sesión ausente, inválida o vencida. }
     Suspended: { description: Cuenta suspendida; en login se comprueba primero la contraseña. }
   schemas:
+    Password:
+      type: string
+      minLength: 8
+      maxLength: 72
+      description: Máximo 72 bytes UTF-8; una mayúscula Unicode, un número y un símbolo no alfanumérico ni espacio.
+    PublicProfile:
+      type: object
+      required: [id, firstName, lastName, major, university, bio, photoUrl, role, registeredAt, _count]
+      properties:
+        id: { type: string, pattern: '^[1-9][0-9]*$', example: '42' }
+        firstName: { type: string }
+        lastName: { type: string }
+        major: { type: string, nullable: true }
+        university: { type: string, nullable: true }
+        bio: { type: string, nullable: true }
+        photoUrl: { type: string, nullable: true }
+        role: { type: string, enum: [user, administrator, usuario, administrador] }
+        registeredAt: { type: string, format: date-time }
+        _count:
+          type: object
+          required: [posts, groups]
+          properties:
+            posts: { type: integer, minimum: 0 }
+            groups: { type: integer, minimum: 0 }
+    Profile:
+      allOf:
+        - $ref: '#/components/schemas/PublicProfile'
+        - type: object
+          required: [email, status]
+          properties:
+            email: { type: string, format: email }
+            status: { type: string, enum: [active, suspended, activo, suspendido] }
+            photoPublicId: { type: string, nullable: true, description: Interno, no reenviar al navegador. }
+            suspendedUntil: { type: string, nullable: true, format: date-time }
+            suspensionReason: { type: string, nullable: true }
+            suspendedBy: { type: integer, nullable: true }
     User:
       type: object
       required: [id, firstName, lastName, email, role, status, photoUrl]

@@ -30,6 +30,13 @@ test("la hidratación evita duplicados y una sola query actualiza menú y perfil
   await page.goto("/perfil");
   await expect(page.getByLabel("Nombre", { exact: true })).toHaveValue("Ana");
   await expect(page.getByRole("button", { name: "Menú de Ana Pruebas" })).toBeVisible();
+  // The fields are server-rendered. Confirm their event handlers are hydrated
+  // before changing cookies and advancing the browser clock externally.
+  await page.getByLabel("Nombre", { exact: true }).fill("Temporal");
+  await expect(page.getByText("Tienes cambios sin guardar", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Descartar", exact: true }).click();
+  await expect(page.getByLabel("Nombre", { exact: true })).toHaveValue("Ana");
+  expect(failures).toEqual([]);
   expect(meRequests).toBe(0);
   await cookie(context, "bob");
   expect((await revalidateOnFocus(page)).status()).toBe(200);

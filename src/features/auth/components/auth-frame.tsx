@@ -102,7 +102,7 @@ export function AuthFrame({
           {children}
           <div className="auth-switch">
             {mode === "login" ? (
-              <>El registro de nuevas cuentas estará disponible próximamente.</>
+              <>¿Aún no tienes cuenta? <Link href="/registro">Crear cuenta</Link></>
             ) : (
               <>
                 ¿Ya tienes una cuenta?{" "}
@@ -110,15 +110,6 @@ export function AuthFrame({
               </>
             )}
           </div>
-          {mode !== "login" && (
-            <div className="auth-preview-note">
-              <Icon name="info" size={17} />
-              <span>
-                Vista previa · Validaciones locales. No ingreses contraseñas de
-                cuentas reales.
-              </span>
-            </div>
-          )}
         </Card>
       </main>
       <footer className="auth-footer">

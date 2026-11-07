@@ -1,6 +1,6 @@
 # Blog Interactivo Estudiantil
 
-Next.js 16, React 19, TypeScript, Tailwind CSS 4, Zustand 5, TanStack Query 5 y shadcn/ui con Radix. El acceso se integra con el backend NestJS: login, perfil actual, sesión al recargar y logout. Las publicaciones conservan sus datos de demostración.
+Next.js 16, React 19, TypeScript, Tailwind CSS 4, Zustand 5, TanStack Query 5 y shadcn/ui con Radix. El acceso, registro, recuperación, edición del perfil y foto, y perfil público se integran con NestJS mediante el servidor Next. Las publicaciones conservan sus datos de demostración.
 
 ## Arranque local
 
@@ -72,13 +72,42 @@ La [guía de componentes](docs/componentes-ui.md) explica la estructura, los con
 
 ## Alcance actual
 
-`/perfil` muestra el nombre, correo y rol reales en modo lectura. Registro, recuperación de contraseña, edición del perfil y el resto de módulos siguen pendientes. Sus formularios previos no realizan operaciones reales. Los enlaces principales de acceso indican esas funciones pendientes; el envío de correo de recuperación todavía debe implementarse en Nest.
+`/registro` crea una cuenta y lleva a `/acceso?registro=ok`, sin iniciar sesión. `/recuperar` envía la solicitud y muestra el mismo aviso para cualquier correo; `/recuperar/[token]` restablece la contraseña y lleva a `/acceso?restablecida=ok`. La entrega del correo depende del backend y queda fuera de esta integración.
+
+`/perfil` carga datos reales y envía solo los cambios de nombre, apellido, carrera, universidad y biografía. Vaciar un campo opcional envía `null`. La foto se previsualiza al elegirla y se sube al pulsar **Guardar foto**, por separado de **Guardar cambios**. **Descartar** retira los cambios y la foto aún no guardados. El menú se actualiza sin recargar el documento; las otras pestañas revalidan mediante el canal de sesión existente.
+
+`/usuarios/{id}` es pública y muestra nombre, foto o iniciales, carrera, universidad, biografía, fecha de registro y contadores. Nunca muestra el correo del perfil consultado. Los IDs inválidos o inexistentes usan `notFound()`; los fallos del servicio conservan el estado de error. Si se consulta el perfil propio aparece **Editar mi perfil**.
+
+La página está en `src/app/(profiles)/usuarios/[id]/page.tsx`, con el mismo `Shell` de la comunidad. Este grupo propio evita heredar el `loading.tsx` de publicaciones: la consulta debe terminar antes de enviar los headers para que un perfil inexistente responda HTTP `404`. La URL pública sigue siendo `/usuarios/{id}`.
+
+### Handlers de cuenta y perfil
+
+| Handler de Next | Endpoint de Nest | Resultado |
+| --- | --- | --- |
+| `POST /api/auth/register` | `POST /auth/register` | `201`, cuenta creada; `409`, correo repetido. |
+| `POST /api/auth/forgot-password` | `POST /auth/forgot-password` | `202`, mensaje neutro. |
+| `POST /api/auth/reset-password` | `POST /auth/reset-password` | `204`; `410`, enlace inválido, vencido o utilizado. |
+| `GET /api/users/me` | `GET /users/me` | Perfil filtrado de la sesión. |
+| `PATCH /api/users/me` | `PATCH /users/me` | Perfil actualizado. |
+| `PUT /api/users/me/photo` | `PUT /users/me/photo` | Multipart con un solo archivo `file`; perfil actualizado. |
+
+Las mutaciones validan `Origin` y una lista blanca de campos. Los handlers responden `Cache-Control: private, no-store`, filtran errores y usan 15 segundos hacia Nest y 20 desde el navegador, sin reintentos. Los `401/403` privados eliminan cookie e identidad; un fallo temporal conserva la última identidad y permite reintentar. El helper temporal `features/auth/server/account-backend.ts` soporta JSON y FormData; `backendAuth` y `AuthUser` mantienen su contrato.
+
+El tipo `Profile` tiene un adaptador propio: ID numérico seguro, roles/estados normalizados y selección explícita de campos. Ni `photoPublicId` ni los campos de suspensión llegan al navegador; el tipo público tampoco incluye email o estado. `/perfil` precarga e hidrata `['profile','me']`, marcada con `meta: { private: true }`. Esta clave fija sigue la especificación de cuenta y perfil: se elimina al cambiar o cerrar sesión, el componente comprueba el ID contra la sesión y las mutaciones descartan respuestas de otra identidad. Las nuevas entidades privadas deben seguir la convención general de incluir el ID en su clave.
+
+Las contraseñas nuevas usan de 8 a 72 caracteres, máximo 72 bytes UTF-8, mayúscula Unicode, número y símbolo. El token requiere 43 caracteres base64url y solo se envía en el body al restablecer. Las variables de las mutaciones se limpian al finalizar y los campos de contraseña se vacían. `/recuperar/*` aplica `Referrer-Policy: no-referrer`; no registrar URLs de recuperación en analítica ni logs de aplicación.
+
+### Fotos en Vercel
+
+El límite del frontend y del BFF es **4 MiB (4 × 1024 × 1024 bytes)**, presentado como 4 MB en la interfaz. Nest admite 5 MB, pero [Vercel limita el cuerpo de las funciones a 4,5 MB](https://vercel.com/docs/functions/limitations). Se deja margen para multipart y se limita también la lectura del cuerpo antes de parsearlo. Solo se admiten JPG y PNG; `fetch` genera el `Content-Type` con su boundary. La validación final del contenido y el guardado en Cloudinary corresponden al backend.
 
 La comprobación inicial de Heroku encontró una cookie sin `Secure` y `Access-Control-Allow-Origin: localhost:3000` sin protocolo. Revisar `NODE_ENV=production`, `FRONTEND_URL` y la versión desplegada del backend antes de publicar. La cookie emitida por Next aplica sus propios atributos y el navegador no llama directamente a Heroku.
 
 Producción requiere un servidor Next y HTTPS; no usar exportación estática. Configurar `BACKEND_API_URL` y `APP_ORIGIN` en el proveedor. La implementación usa [Route Handlers como intermediario](https://nextjs.org/docs/app/guides/backend-for-frontend) y la [API de cookies de Next](https://nextjs.org/docs/app/api-reference/functions/cookies).
 
 ## Verificación
+
+Cuenta y perfil verificados el 2026-11-06 (hora de El Salvador): lint, **31 pruebas unitarias**, typecheck, build y **35 pruebas de Playwright** correctas. Se comprobaron el HTTP 404 del perfil público, la persistencia de datos y foto, el restablecimiento de contraseña y las regresiones de sesión. La ejecución utilizó Next compilado, Edge y la simulación local; no se probaron cuentas reales, entrega de correo ni Cloudinary, y no se desplegó en Vercel.
 
 ```bash
 npm run lint
@@ -89,7 +118,9 @@ pnpm exec playwright install chromium
 npm run test:auth
 ```
 
-`test:auth` requiere Postman CLI (verificado con 1.84.0). Arranca automáticamente una simulación en el puerto 4020 y la compilación de Next en 3015; ambos puertos deben estar libres. No usa Heroku ni credenciales reales, no publica recursos y no necesita una cuenta de Postman. Cierra los servidores al finalizar. Playwright verifica cookies, login/recarga/logout, rutas privadas, errores, aislamiento SSR, hidratación sin duplicados, revalidación compartida, varias pestañas, cambio de cuenta con historial, móvil y tiempos de espera. También verifica navegación por teclado en menús, diálogos y filtros, consentimiento del registro, validaciones de vista previa, búsqueda y módulos pendientes. `npm run test:ui` ejecuta únicamente estos escenarios de interfaz.
+`test:auth` requiere Postman CLI (la integración de cuenta y perfil usa 1.86.0). Arranca automáticamente una simulación en el puerto 4020 y la compilación de Next en 3015; ambos puertos deben estar libres. No usa Heroku ni credenciales reales, no publica recursos y no necesita una cuenta de Postman. Cierra los servidores al finalizar. Playwright verifica cookies, login/recarga/logout, rutas privadas, errores, aislamiento SSR, hidratación sin duplicados, revalidación compartida, varias pestañas, cambio de cuenta con historial, móvil y tiempos de espera. También comprueba registro, correo repetido, recuperación neutra, restablecimiento y reutilización de tokens, edición persistente, foto, perfil público, origen y DTO. `npm run test:ui` conserva los escenarios de interfaz, teclado, consentimiento, búsqueda y módulos pendientes.
+
+En PowerShell se puede usar `npm.cmd` si la política de ejecución bloquea `npm.ps1`. Si ya existe Edge y no se ha instalado Chromium para Playwright, configurar `PLAYWRIGHT_CHROMIUM_EXECUTABLE` con la ruta de `msedge.exe`. La suite usa únicamente datos sintéticos.
 
 El contrato está en `postman/contracts/auth.openapi.yaml`. El mock se generó desde ese contrato y se adaptó para modelar cookies y fallos. `postman/simulations/auth.context.yaml` registra evidencia y límites de la simulación. No regenerar el handler sin conservar esas adaptaciones.
 
@@ -106,4 +137,4 @@ postman simulation run postman/simulations/auth.sim.yaml --port 4010 --no-histor
 BACKEND_API_URL=http://127.0.0.1:4010/blog-auth/api/v1 npm run dev -- --port 3005
 ```
 
-La simulación escucha en IPv4, por eso su URL interna usa `127.0.0.1`; abrir el frontend en `http://localhost:3005`. Cuenta ficticia local: `ana@example.test` / `SimulationPassword123!`. El mock solo reproduce los tres endpoints de sesión; cualquier otro devuelve `501`. Los resultados locales prueban la integración con el contrato modelado, no todos los comportamientos de Heroku.
+La simulación escucha en IPv4, por eso su URL interna usa `127.0.0.1`; abrir el frontend en `http://localhost:3005`. Cuenta ficticia local: `ana@example.test` / `SimulationPassword123!`. El mock conserva login, me y logout y añade registro, recuperación, restablecimiento, edición, foto y perfil público. Usa `pm.state` para cuentas sintéticas, cambios y tokens utilizados; no regenerar `default.js`. Los tokens de prueba son `a` repetida 43 veces (Ana), `r` repetida 43 veces (cuenta sintética `reset@example.test`, creada por la prueba) y `e` repetida 43 veces (vencido). Los no modelados devuelven `501`. El mock verifica multipart con boundary, pero no procesa imágenes en Cloudinary ni envía correo; la expiración se representa con fixtures. Los resultados locales prueban el contrato modelado, no todos los comportamientos de Heroku.

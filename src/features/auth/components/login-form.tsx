@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Notice } from "@/components/notice";
@@ -15,9 +16,11 @@ import type { SessionNotice } from "../store";
 export function LoginForm({
   returnTo,
   initialNotice = null,
+  successMessage,
 }: {
   returnTo: string;
   initialNotice?: SessionNotice;
+  successMessage?: string;
 }) {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -60,6 +63,7 @@ export function LoginForm({
         }}
         aria-busy={pending}
       >
+        {successMessage && <Notice kind="success">{successMessage}</Notice>}
         {notice && (
           <Notice kind={notice === "suspended" ? "error" : "info"}>
             {notice === "expired"
@@ -113,7 +117,7 @@ export function LoginForm({
           disabled={pending}
         />
         <p className="field-hint">
-          La recuperación de contraseña estará disponible próximamente.
+          <Link href="/recuperar">¿Olvidaste tu contraseña?</Link>
         </p>
         {error && (
           <Notice kind="error">
