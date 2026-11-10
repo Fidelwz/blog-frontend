@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { hasEditorDocument } from "@/features/auth/editor-session";
 import { Logo } from "@/components/brand/logo";
 import { CommunityRules } from "@/components/community-rules";
 import { Icon, type IconName } from "@/components/ui/icon";
@@ -63,6 +65,7 @@ const navigation: {
   { href: "/perfil", label: "Mi perfil", icon: "user", short: "Perfil" },
 ];
 export function Shell({ children }: { children: ReactNode }) {
+  const client = useQueryClient();
   const path = usePathname();
   const menuOpen = useAuthUiStore((state) => state.userMenuOpen);
   const setMenuOpen = useAuthUiStore((state) => state.setMenuOpen);
@@ -77,7 +80,7 @@ export function Shell({ children }: { children: ReactNode }) {
       : "No pudimos cerrar la sesión. Revisa tu conexión e inténtalo de nuevo."
     : "";
   const hidePrivateContent =
-    isPrivatePath(path) && !user && session.status !== "unavailable";
+    isPrivatePath(path) && !user && session.status !== "unavailable" && !hasEditorDocument(client);
   const active = (href: string) =>
     path === href || (href === "/inicio" && path === "/");
   return (

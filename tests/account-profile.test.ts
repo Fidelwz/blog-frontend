@@ -147,12 +147,12 @@ test("guardar sincroniza sesión, cancela lecturas viejas y elimina caché priva
   client.clear();
 });
 
-test("fallos privados 401/403 limpian sesión, fallos de red la conservan", async () => {
+test("solo 401 y suspensión confirmada limpian sesión de perfil", async () => {
   const client = createQueryClient();
-  for (const status of [503, 401, 403]) {
+  for (const [status, code, expected] of [[503, "Network", "authenticated"], [401, "Unauthorized", "expired"], [403, "AccountSuspended", "suspended"], [403, "Forbidden", "authenticated"], [403, "AuthError", "authenticated"]] as const) {
     client.setQueryData(sessionKey, { status: "authenticated", user: profile });
-    await clearInvalidProfileSession(client, new ApiError({ statusCode: status, error: "test", mensaje: "test" }));
-    assert.equal(client.getQueryData<AuthSession>(sessionKey)?.status, status === 503 ? "authenticated" : status === 401 ? "expired" : "suspended");
+    await clearInvalidProfileSession(client, new ApiError({ statusCode: status, error: code, mensaje: "test" }));
+    assert.equal(client.getQueryData<AuthSession>(sessionKey)?.status, expected);
   }
   client.clear();
 });

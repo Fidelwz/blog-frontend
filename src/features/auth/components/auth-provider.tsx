@@ -10,6 +10,7 @@ import { useSession } from "../queries";
 import { onSessionChange } from "../sync";
 import { isPrivatePath, safeReturnPath } from "../utils";
 import type { AuthSession } from "../types";
+import { hasEditorDocument, refreshEditorSession } from "../editor-session";
 
 const StoreContext = createContext<AuthUiStore | null>(null);
 export function useAuthUiStore<T>(selector: (state: AuthUiState) => T): T {
@@ -37,7 +38,7 @@ function SessionLifecycle({ store }: { store: AuthUiStore }) {
       if (session.status === "suspended") store.getState().setNotice("suspended");
       else if (session.status === "expired" || (old.user && session.status === "anonymous")) store.getState().setNotice("expired");
     }
-    if (!mutating && ["anonymous", "expired", "suspended"].includes(session.status) && isPrivatePath(path)) {
+    if (!mutating && !hasEditorDocument(client) && ["anonymous", "expired", "suspended"].includes(session.status) && isPrivatePath(path)) {
       const notice = session.status === "suspended" ? "suspended" : "expired";
       window.location.replace(`/acceso?next=${encodeURIComponent(safeReturnPath(path))}&notice=${notice}`);
     }
@@ -53,10 +54,19 @@ function SessionLifecycle({ store }: { store: AuthUiStore }) {
       if (reloading) return;
       reloading = true;
       store.getState().reset();
+      if (hasEditorDocument(client)) {
+        void refreshEditorSession(client).finally(() => { reloading = false; });
+        return;
+      }
       // The message contains no identity. SSR checks the actual shared cookie.
       void replaceSession(client, { status: "checking", user: null }).then(() => window.location.reload());
     });
-    const restore = (event: PageTransitionEvent) => { if (event.persisted) window.location.reload(); };
+    const restore = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        if (hasEditorDocument(client)) void refreshEditorSession(client);
+        else window.location.reload();
+      }
+    };
     window.addEventListener("pageshow", restore);
     return () => { unsubscribe(); window.removeEventListener("pageshow", restore); };
   }, [client, store]);

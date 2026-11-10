@@ -1,12 +1,13 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { ApiError } from "../../lib/api/client.ts";
+import { invalidatesSession } from "../auth/session-errors.ts";
 import { replaceSession, sessionKey } from "../auth/cache.ts";
 import type { AuthSession } from "../auth/types.ts";
 import { profileKey } from "./query-options.ts";
 import type { Profile } from "./types.ts";
 
 export async function clearInvalidProfileSession(client: QueryClient, error: unknown) {
-  if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+  if (error instanceof ApiError && invalidatesSession(error)) {
     await replaceSession(client, { status: error.status === 403 ? "suspended" : "expired", user: null });
   }
 }

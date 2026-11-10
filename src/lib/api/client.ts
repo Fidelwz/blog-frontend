@@ -3,11 +3,15 @@ import type { ApiErrorBody } from "./contracts.ts";
 export class ApiError extends Error {
   readonly status: number;
   readonly correlationId?: string;
+  readonly code?: string;
+  readonly retryAfter?: number;
   constructor(body: ApiErrorBody) {
     super(body.mensaje);
     this.name = "ApiError";
     this.status = body.statusCode;
     this.correlationId = body.idCorrelacion;
+    this.code = body.error;
+    this.retryAfter = body.retryAfter;
   }
 }
 
@@ -35,6 +39,7 @@ export function createApiClient(baseUrl: string, transport: typeof fetch = fetch
         error: typeof body.error === "string" ? body.error : "ApiError",
         mensaje: message || (typeof body.mensaje === "string" ? body.mensaje : "No pudimos completar la solicitud. Inténtalo de nuevo."),
         idCorrelacion: body.idCorrelacion,
+        retryAfter: body.retryAfter,
       });
     }
     if (response.status === 204 || response.status === 205) return undefined;

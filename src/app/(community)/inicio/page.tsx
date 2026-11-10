@@ -1,29 +1,8 @@
-import {
-  Hero,
-  Explorer,
-  CommunityAside,
-} from "@/features/publications/explorer";
-import { Notice } from "@/components/notice";
-import { DEMO_MODE } from "@/lib/demo";
+import { Hero } from "@/features/publications/explorer";
+import { PublicExplorer, type SearchParams } from "@/features/publications/public-explorer";
 import { requireUser } from "@/features/auth/server";
 export const metadata = { title: "Inicio" };
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<SearchParams> }) {
   await requireUser("/inicio");
-  return (
-    <>
-      <Hero student />
-      {DEMO_MODE ? (
-        <div className="content-grid feed-page">
-          <section aria-label="Publicaciones de ejemplo">
-            <Explorer />
-          </section>
-          <CommunityAside />
-        </div>
-      ) : (
-        <Notice>
-          Las publicaciones de la comunidad estarán disponibles próximamente.
-        </Notice>
-      )}
-    </>
-  );
+  return <><Hero student/><PublicExplorer params={await searchParams}/></>;
 }

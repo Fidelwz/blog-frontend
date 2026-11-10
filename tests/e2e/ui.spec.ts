@@ -107,48 +107,16 @@ test("recuperación y restablecimiento completan sus solicitudes", async ({
   expect(writes).toEqual([`${origin}/api/auth/forgot-password`, `${origin}/api/auth/reset-password`]);
 });
 
-test("publicaciones permiten cargar más, filtrar con teclado, buscar y leer", async ({
+test("el backend simulado de cuenta no se sustituye por publicaciones de demostración", async ({
   page,
-}, testInfo) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto("/");
-  await expect(page.getByRole("article")).toHaveCount(3);
-  await page.screenshot({
-    path: testInfo.outputPath("inicio-desktop.png"),
-    fullPage: true,
-  });
-  await page.getByRole("button", { name: "Cargar más publicaciones" }).click();
-  await expect(page.getByRole("article")).toHaveCount(6);
-  const filters = page.getByLabel("Filtrar por materia");
-  await filters.getByText("Todas", { exact: true }).focus();
-  await page.keyboard.press("ArrowRight");
-  await expect(
-    filters.getByRole("radio", { name: "Bases de Datos", exact: true }),
-  ).toBeFocused();
-  await page.keyboard.press("Space");
-  await expect(page.getByRole("article")).toHaveCount(2);
-  await expect(
-    page.getByRole("heading", {
-      name: "JOIN en SQL: ¿cuál necesito para mi consulta?",
-    }),
-  ).toBeVisible();
-  await page
-    .getByRole("heading", {
-      name: "Cómo normalizar una base de datos hasta 3FN",
-    })
-    .click();
-  await expect(page).toHaveURL(/\/publicaciones\/1$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Cómo normalizar una base de datos hasta 3FN",
-  );
+}) => {
+  // Real content, CRUD and recovery live in backend/test/web-smoke.cjs.
+  // This fixture implements authentication/profile only.
   await page.goto("/buscar");
-  await page.getByLabel("Término de búsqueda").fill("sin-coincidencias-12345");
-  await page.getByRole("button", { name: "Buscar", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Todavía no encontramos coincidencias" }),
-  ).toBeVisible();
-  await page.goto("/buscar?categoria=no-existe");
-  await expect(page.getByRole("article")).toHaveCount(3);
+  await expect(page.getByText("No pudimos cargar las materias.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Publicaciones", exact: true }).getByRole("button", { name: "Reintentar", exact: true })).toBeVisible();
+  await expect(page.getByRole("article")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Cargar más publicaciones" })).toHaveCount(0);
 });
 
 test("menú de cuenta navega con teclado y los módulos pendientes mantienen sus vistas", async ({
@@ -187,9 +155,7 @@ test("menú de cuenta navega con teclado y los módulos pendientes mantienen sus
   await expect(trigger).toBeFocused();
   const routes = [
     ["/grupos", "Juntos llegamos más lejos."],
-    ["/mis-publicaciones", "Tus ideas, en un solo lugar."],
     ["/notificaciones", "No te pierdas una buena conversación."],
-    ["/publicaciones/nueva", "Hay algo que solo tú puedes compartir."],
   ];
   for (const [path, title] of routes) {
     await page.goto(path);

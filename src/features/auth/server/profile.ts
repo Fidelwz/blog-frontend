@@ -6,7 +6,7 @@ export function parseBackendAuthUser(value: unknown) {
   const user = value as Record<string, unknown>;
   return parseAuthUser({
     ...user,
-    role: user.role === "user" ? "usuario" : user.role,
-    status: user.status === "active" ? "activo" : user.status,
+    role: user.role === "user" ? "usuario" : user.role === "administrator" ? "administrador" : user.role,
+    status: user.status === "active" ? "activo" : user.status === "suspended" ? "suspendido" : user.status,
   });
 }

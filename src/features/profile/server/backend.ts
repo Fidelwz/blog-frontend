@@ -13,7 +13,7 @@ export function requireCookie(cookie: string | undefined) {
 export async function readProfile(response: Response) {
   try {
     const profile = parseBackendProfile(await response.json());
-    if (profile.status === "suspendido") throw authError(403, "Tu cuenta está suspendida. Comunícate con el administrador.");
+    if (profile.status === "suspendido") throw authError(403, "Tu cuenta está suspendida. Comunícate con el administrador.", "AccountSuspended");
     return profile;
   } catch (error) {
     if (error instanceof ApiError) throw error;

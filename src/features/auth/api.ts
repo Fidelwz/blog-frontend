@@ -28,7 +28,7 @@ export function createAuthApi(transport: typeof fetch = fetch) {
       return { status: "authenticated", user: parseAuthUser(await request("/me", { signal: requestSignal(signal) })) };
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) return { status: "anonymous", user: null };
-      if (error instanceof ApiError && error.status === 403) return { status: "suspended", user: null };
+      if (error instanceof ApiError && error.status === 403 && error.code === "AccountSuspended") return { status: "suspended", user: null };
       throw error;
     }
   }

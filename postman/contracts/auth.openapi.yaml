@@ -5,8 +5,9 @@ info:
   description: >-
     Subconjunto del contrato NestJS proporcionado por el propietario, con los aliases
     user/active observados en el login de Heroku durante el diagnóstico de noviembre de 2026.
-    Se conservan los valores originales en español por compatibilidad; otros aliases en
-    inglés no han sido confirmados. Next normaliza user/active a usuario/activo antes de
+    El código local de Nest también devuelve administrator/suspended.
+    Se conservan los valores originales en español por compatibilidad.
+    Next normaliza los roles y estados conocidos al contrato español antes de
     entregar el perfil a su cliente. Cuenta y perfil siguen el contrato de
     docs/TAREA_GABITO_CUENTA_Y_PERFIL.md, sin verificación nueva en Heroku.
     No contiene credenciales reales.
@@ -258,6 +259,6 @@ components:
         firstName: { type: string, example: Ana }
         lastName: { type: string, example: Pruebas }
         email: { type: string, format: email, example: ana@example.test }
-        role: { type: string, enum: [user, usuario, administrador], example: user }
-        status: { type: string, enum: [active, activo, suspendido], example: active }
+        role: { type: string, enum: [user, administrator, usuario, administrador], example: user }
+        status: { type: string, enum: [active, suspended, activo, suspendido], example: active }
         photoUrl: { type: string, nullable: true, example: null }

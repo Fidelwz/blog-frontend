@@ -16,7 +16,7 @@ async function readSession(): Promise<AuthSession> {
     return { status: "authenticated", user: await backendUser(await backendAuth("me", { cookie })) };
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) return { status: "expired", user: null };
-    if (error instanceof ApiError && error.status === 403) return { status: "suspended", user: null };
+    if (error instanceof ApiError && error.status === 403 && error.code === "AccountSuspended") return { status: "suspended", user: null };
     return { status: "unavailable", user: null };
   }
 }

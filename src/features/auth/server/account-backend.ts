@@ -1,6 +1,8 @@
 import "server-only";
 import { authError } from "./backend.ts";
 import { SESSION_COOKIE, validCookieValue } from "./cookie.ts";
+import { upstreamError } from "../../../lib/server/upstream-error.ts";
+import { forwardedIdentity } from "../../../lib/server/forwarded-identity.ts";
 
 // Temporary transport for account/profile endpoints. Keep backendAuth's session contract intact.
 export async function accountBackend(path: string, options: {
@@ -18,12 +20,14 @@ export async function accountBackend(path: string, options: {
     throw authError(503, "La configuración del servicio no es válida.");
   }
   const headers = new Headers({ Accept: "application/json" });
+  const target = `${base.href.replace(/\/$/, "")}${path}`;
+  (await forwardedIdentity(target, options.method ?? "GET")).forEach((value, key) => headers.set(key, value));
   if (options.cookie && validCookieValue(options.cookie)) headers.set("Cookie", `${SESSION_COOKIE}=${options.cookie}`);
   const multipart = options.body instanceof FormData;
   if (options.body && !multipart) headers.set("Content-Type", "application/json");
   let response: Response;
   try {
-    response = await fetch(`${base.href.replace(/\/$/, "")}${path}`, {
+    response = await fetch(target, {
       method: options.method ?? "GET", headers,
       body: multipart ? options.body as FormData : options.body ? JSON.stringify(options.body) : undefined,
       cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(15_000),
@@ -44,8 +48,7 @@ export async function accountBackend(path: string, options: {
     };
     const status = !response.ok && messages[response.status] ? response.status : 502;
     // Never return upstream bodies, redirects, cookies or tokens to the browser.
-    await response.body?.cancel();
-    throw authError(status, messages[status] ?? "No pudimos completar la solicitud. Inténtalo de nuevo.");
+    throw await upstreamError(response, status, messages[status] ?? "No pudimos completar la solicitud. Inténtalo de nuevo.", "AuthError");
   }
   return response;
 }

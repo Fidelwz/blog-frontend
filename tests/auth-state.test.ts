@@ -104,7 +104,7 @@ test("el transporte distingue 401/403 de red y limpia credenciales en éxito y e
     let sent: RequestInit | undefined;
     const api = createAuthApi(async (_url, init) => {
       sent = init;
-      return Response.json(status === 200 ? user : { message: "error" }, { status });
+      return Response.json(status === 200 ? user : { message: "error", error: status === 403 ? "AccountSuspended" : "AuthError" }, { status });
     });
     const credentials = { email: user.email, password: "TestPassword123!" };
     if (status === 200) assert.deepEqual(await api.login(credentials), user);

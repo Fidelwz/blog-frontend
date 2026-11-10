@@ -6,7 +6,7 @@ const { createHash } = require('node:crypto');
 const hash = value => createHash('sha256').update(value).digest('hex');
 const users = {
   ana: { id: 42, firstName: 'Ana', lastName: 'Pruebas', email: 'ana@example.test', role: 'user', status: 'active', photoUrl: null },
-  bob: { id: 43, firstName: 'Bruno', lastName: 'Pruebas', email: 'bob@example.test', role: 'administrador', status: 'activo', photoUrl: null },
+  bob: { id: 43, firstName: 'Bruno', lastName: 'Pruebas', email: 'bob@example.test', role: 'administrator', status: 'active', photoUrl: null },
 };
 const password = 'SimulationPassword123!';
 const passwordValid = value => typeof value === 'string' && value.length >= 8 && value.length <= 72 && Buffer.byteLength(value) <= 72 && /\p{Lu}/u.test(value) && /\d/.test(value) && /[^\p{L}\p{N}\s]/u.test(value);
@@ -64,7 +64,7 @@ http.createServer(async (req, res) => {
     const found = Object.entries(accounts).find(([, user]) => user.email === body.email);
     const expectedHash = found ? await pm.state.get(`password-${found[1].id}`) : null;
     if (hash(body.password) !== (expectedHash || hash(password))) return send(res, 401, { message: 'Invalid credentials' });
-    if (body.email === 'suspended@example.test') return send(res, 403, { message: 'Suspended account' });
+    if (body.email === 'suspended@example.test') return send(res, 403, { error: 'AccountSuspended', message: 'The account is suspended' });
     if (body.email === 'unavailable@example.test') { res.writeHead(503, { 'Content-Type': 'text/html' }); return res.end('<h1>Service unavailable</h1>'); }
     if (body.email === 'slow@example.test') await new Promise(resolve => setTimeout(resolve, 16_000));
     if (body.email === 'invalid@example.test') return send(res, 200, { id: 'incorrect' });
@@ -75,7 +75,7 @@ http.createServer(async (req, res) => {
   }
   if (req.method === 'GET' && path === '/api/v1/auth/me') {
     const token = (req.headers.cookie || '').split(';').map(c => c.trim()).find(c => c.startsWith('jwt='))?.slice(4);
-    if (token === 'mock.suspended.session') return send(res, 403, { message: 'Suspended account' });
+    if (token === 'mock.suspended.session') return send(res, 403, { error: 'AccountSuspended', message: 'The account is suspended' });
     if (token === 'mock.unavailable.session') return send(res, 503, { message: 'Unavailable' });
     return current ? send(res, 200, current) : send(res, 401, { message: 'Invalid or expired session' });
   }
@@ -85,7 +85,7 @@ http.createServer(async (req, res) => {
     return send(res, 204, undefined, { 'Set-Cookie': 'jwt=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict; Secure' });
   }
   if (path === '/api/v1/users/me' || path === '/api/v1/users/me/photo') {
-    if (token === 'mock.suspended.session') return send(res, 403, { message: 'Suspended account' });
+    if (token === 'mock.suspended.session') return send(res, 403, { error: 'AccountSuspended', message: 'The account is suspended' });
     if (token === 'mock.unavailable.session') return send(res, 503, { message: 'Unavailable' });
     if (!current) return send(res, 401, { message: 'Invalid or expired session' });
     if (req.method === 'GET' && path === '/api/v1/users/me') return send(res, 200, profileOf(current));

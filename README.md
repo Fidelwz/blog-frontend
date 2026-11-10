@@ -1,6 +1,6 @@
 # Blog Interactivo Estudiantil
 
-Next.js 16, React 19, TypeScript, Tailwind CSS 4, Zustand 5, TanStack Query 5 y shadcn/ui con Radix. El acceso, registro, recuperación, edición del perfil y foto, y perfil público se integran con NestJS mediante el servidor Next. Las publicaciones conservan sus datos de demostración.
+Next.js 16, React 19, TypeScript, Tailwind CSS 4, Zustand 5, TanStack Query 5 y shadcn/ui con Radix. El acceso, registro, recuperación, edición del perfil y foto, y perfil público se integran con NestJS mediante el servidor Next. Categorías, feed, búsqueda, detalle, CRUD público y publicaciones propias consumen la API real a través del BFF.
 
 ## Arranque local
 
@@ -19,14 +19,14 @@ NEXT_PUBLIC_DEMO_MODE=true
 BACKEND_API_URL=https://blog-backend-nest-542aed7d1eb3.herokuapp.com/api/v1
 ```
 
-`BACKEND_API_URL` solo se usa en el servidor. Para Nest local: `http://localhost:4000/api/v1`. Usar `localhost` de forma consistente. `NEXT_PUBLIC_DEMO_MODE` controla únicamente las publicaciones de ejemplo: nunca permite entrar a páginas privadas sin autenticación.
+`BACKEND_API_URL` solo se usa en el servidor. Para Nest local: `http://localhost:4000/api/v1`. Usar `localhost` de forma consistente. `NEXT_PUBLIC_DEMO_MODE` ya no controla el feed ni el detalle activos, que consultan Nest. Quedan utilidades y pruebas antiguas de demostración pendientes de limpieza; ninguna permite entrar a páginas privadas sin autenticación.
 
 ## Flujo de sesión
 
 El navegador llama a `/api/auth/login`, `/api/auth/me` y `/api/auth/logout` en Next. Los Route Handlers llaman a los endpoints `/api/v1/auth/*` de Nest desde el servidor. Esto permite trabajar con Heroku manteniendo la cookie `SameSite=Strict`, sin depender de cookies entre sitios distintos.
 
 - Login envía exclusivamente `email` y `password`; devuelve un perfil público con ID numérico.
-- El adaptador `src/features/auth/server/profile.ts` convierte los valores `user` y `active` observados en Heroku a `usuario` y `activo`. También acepta los valores originales en español. Login y `/me` entregan al navegador el mismo contrato interno; roles, estados y perfiles desconocidos siguen siendo rechazados.
+- El adaptador `src/features/auth/server/profile.ts` normaliza `user`/`administrator` y `active`/`suspended` a los roles y estados internos en español. También acepta los valores originales en español. Login y `/me` entregan al navegador el mismo contrato interno; roles, estados y perfiles desconocidos siguen siendo rechazados.
 - Next recibe `Set-Cookie` y establece únicamente `jwt` para el host del frontend: HttpOnly, SameSite Strict, Path `/`, Secure en producción. Respeta el vencimiento recibido y limita la duración a una hora. No necesita `JWT_SECRET` ni firma tokens.
 - La sesión se verifica contra `/me` en el servidor. Las consultas se deduplican dentro de cada render, nunca entre usuarios. Las respuestas HTTP y el fetch del servidor usan `no-store`; el navegador mantiene el perfil público en memoria mediante TanStack Query. `/me` no prolonga la cookie.
 - Login y logout comprueban `Origin`; en producción configurar `APP_ORIGIN` con el origen público exacto, por ejemplo `https://blog.example.com`, sin barra final.
@@ -51,7 +51,7 @@ La navegación tras login y logout carga un documento nuevo para actualizar la i
 
 El servidor prepara una instantánea de sesión y la hidrata en Query, evitando una segunda petición inmediata del navegador. Cada render tiene su propio QueryClient; en el navegador la instancia permanece estable. La consulta considera los datos frescos durante 60 segundos, no hace polling ni reintentos automáticos, y revalida al recuperar visibilidad o conexión cuando están obsoletos. Este plazo no representa el vencimiento del JWT. Durante login/logout se desactiva la consulta para evitar carreras.
 
-El cambio de sesión cancela las consultas privadas pendientes y retira sus datos. Un fallo de red conserva la última identidad conocida y permite reintentar; un `/me` con `401` o `403` la retira. Un bloqueo síncrono evita dobles envíos y mantiene la navegación bajo control de la mutación hasta reemplazar el documento.
+El cambio de sesión cancela las consultas privadas pendientes y retira sus datos. Un fallo de red conserva la última identidad conocida y permite reintentar; un `401` o una suspensión confirmada la retira; un `403` de permiso conserva la identidad. Un bloqueo síncrono evita dobles envíos y mantiene la navegación bajo control de la mutación hasta reemplazar el documento.
 
 Las pestañas se avisan por `BroadcastChannel` con un evento sin perfil ni token. La receptora limpia los datos privados y recarga para validar la cookie en el servidor. Si el navegador no admite este canal, queda la revalidación al recuperar visibilidad. Al restaurar una página desde la caché de historial también se recarga. No se persisten perfiles, queries o credenciales en almacenamiento del navegador.
 
@@ -72,7 +72,7 @@ La [guía de componentes](docs/componentes-ui.md) explica la estructura, los con
 
 ## Alcance actual
 
-`/registro` crea una cuenta y lleva a `/acceso?registro=ok`, sin iniciar sesión. `/recuperar` envía la solicitud y muestra el mismo aviso para cualquier correo; `/recuperar/[token]` restablece la contraseña y lleva a `/acceso?restablecida=ok`. La entrega del correo depende del backend y queda fuera de esta integración.
+`/registro` crea una cuenta y lleva a `/acceso?registro=ok`, sin iniciar sesión. `/recuperar` envía la solicitud y muestra el mismo aviso para cualquier correo; `/recuperar/[token]` restablece la contraseña y lleva a `/acceso?restablecida=ok`. El backend incorpora SMTP y entrega verificada con Mailpit local; configurar y verificar el proveedor real antes del despliegue.
 
 `/perfil` carga datos reales y envía solo los cambios de nombre, apellido, carrera, universidad y biografía. Vaciar un campo opcional envía `null`. La foto se previsualiza al elegirla y se sube al pulsar **Guardar foto**, por separado de **Guardar cambios**. **Descartar** retira los cambios y la foto aún no guardados. El menú se actualiza sin recargar el documento; las otras pestañas revalidan mediante el canal de sesión existente.
 
@@ -91,7 +91,7 @@ La página está en `src/app/(profiles)/usuarios/[id]/page.tsx`, con el mismo `S
 | `PATCH /api/users/me` | `PATCH /users/me` | Perfil actualizado. |
 | `PUT /api/users/me/photo` | `PUT /users/me/photo` | Multipart con un solo archivo `file`; perfil actualizado. |
 
-Las mutaciones validan `Origin` y una lista blanca de campos. Los handlers responden `Cache-Control: private, no-store`, filtran errores y usan 15 segundos hacia Nest y 20 desde el navegador, sin reintentos. Los `401/403` privados eliminan cookie e identidad; un fallo temporal conserva la última identidad y permite reintentar. El helper temporal `features/auth/server/account-backend.ts` soporta JSON y FormData; `backendAuth` y `AuthUser` mantienen su contrato.
+Las mutaciones validan `Origin` y una lista blanca de campos. Los handlers responden `Cache-Control: private, no-store`, filtran errores y usan 15 segundos hacia Nest y 20 desde el navegador, sin reintentos. Los `401` y los `403` con código `AccountSuspended` eliminan cookie e identidad; los rechazos por Origin o permiso las conservan; un fallo temporal conserva la última identidad y permite reintentar. El helper temporal `features/auth/server/account-backend.ts` soporta JSON y FormData; `backendAuth` y `AuthUser` mantienen su contrato.
 
 El tipo `Profile` tiene un adaptador propio: ID numérico seguro, roles/estados normalizados y selección explícita de campos. Ni `photoPublicId` ni los campos de suspensión llegan al navegador; el tipo público tampoco incluye email o estado. `/perfil` precarga e hidrata `['profile','me']`, marcada con `meta: { private: true }`. Esta clave fija sigue la especificación de cuenta y perfil: se elimina al cambiar o cerrar sesión, el componente comprueba el ID contra la sesión y las mutaciones descartan respuestas de otra identidad. Las nuevas entidades privadas deben seguir la convención general de incluir el ID en su clave.
 
@@ -105,7 +105,29 @@ La comprobación inicial de Heroku encontró una cookie sin `Secure` y `Access-C
 
 Producción requiere un servidor Next y HTTPS; no usar exportación estática. Configurar `BACKEND_API_URL` y `APP_ORIGIN` en el proveedor. La implementación usa [Route Handlers como intermediario](https://nextjs.org/docs/app/guides/backend-for-frontend) y la [API de cookies de Next](https://nextjs.org/docs/app/api-reference/functions/cookies).
 
+## Contenido integrado
+
+- `/`, `/buscar` e `/inicio`: categorías y feed público real, búsqueda de 2–254 caracteres y paginación. `/inicio` aún no combina grupos propios (G05).
+- `/publicaciones/:id`: HTML sanitizado, recursos y HTTP 404 real. Permite añadir, visualizar y eliminar imágenes públicas; conversación y gestión completa de adjuntos siguen pendientes.
+- `/publicaciones/nueva` y `/publicaciones/:id/editar`: sesión requerida, título 3–150, categoría y HTML final ≤20000. Editor de texto escapado; el formato rico previo se conserva sin reescribirlo. Edición con versión y borrador conservado ante 409.
+- Eliminación propia confirmada y sin parsear JSON en 204. CRUD invalida las consultas de publicaciones; las acciones ajenas se rechazan en Nest.
+- `/mis-publicaciones`: estados visible/retenida/eliminada, paginación privada y claves de consulta por cuenta. Las eliminadas no enlazan al detalle ni ofrecen edición. El BFF adapta `postId`, `held` y `_count`, sin enviar `limit` a Nest.
+
+El contrato vigente está en [docs/contratos-api.md](../docs/contratos-api.md).
+Las rutas de escritura validan Origin y una lista blanca; cuerpos de publicación
+admiten hasta 256 KiB para JSON, sin ampliar el límite de contenido. Los datos
+privados usan no-store; categorías públicas pueden cachearse durante una hora.
+Los permisos de grupos y archivos privados siguen pendientes de G02/A02.
+
 ## Verificación
+
+La continuación del 2026-11-08 añade pruebas de contratos de contenido y una
+prueba de navegador contra Next, Nest, PostgreSQL y SMTP locales. Consultar
+[ESTADO_IMPLEMENTACION.md](../ESTADO_IMPLEMENTACION.md) para resultados actuales y
+[las instrucciones](../blog-backend/test/README.md) para reproducirla. Las cifras
+y pruebas con mocks descritas a continuación son evidencia histórica, no una
+verificación nueva de todos esos recorridos.
+
 
 Cuenta y perfil verificados el 2026-11-06 (hora de El Salvador): lint, **31 pruebas unitarias**, typecheck, build y **35 pruebas de Playwright** correctas. Se comprobaron el HTTP 404 del perfil público, la persistencia de datos y foto, el restablecimiento de contraseña y las regresiones de sesión. La ejecución utilizó Next compilado, Edge y la simulación local; no se probaron cuentas reales, entrega de correo ni Cloudinary, y no se desplegó en Vercel.
 
@@ -138,3 +160,11 @@ BACKEND_API_URL=http://127.0.0.1:4010/blog-auth/api/v1 npm run dev -- --port 300
 ```
 
 La simulación escucha en IPv4, por eso su URL interna usa `127.0.0.1`; abrir el frontend en `http://localhost:3005`. Cuenta ficticia local: `ana@example.test` / `SimulationPassword123!`. El mock conserva login, me y logout y añade registro, recuperación, restablecimiento, edición, foto y perfil público. Usa `pm.state` para cuentas sintéticas, cambios y tokens utilizados; no regenerar `default.js`. Los tokens de prueba son `a` repetida 43 veces (Ana), `r` repetida 43 veces (cuenta sintética `reset@example.test`, creada por la prueba) y `e` repetida 43 veces (vencido). Los no modelados devuelven `501`. El mock verifica multipart con boundary, pero no procesa imágenes en Cloudinary ni envía correo; la expiración se representa con fixtures. Los resultados locales prueban el contrato modelado, no todos los comportamientos de Heroku.
+
+### Imágenes y diagnóstico de Cloudinary
+
+Después de guardar una publicación pública, su autor puede subir JPG/PNG (hasta 4 MB) desde **Imágenes**, verlos y eliminarlos. Los fallos conservan la publicación. Perfil y publicaciones distinguen ahora falta de configuración de almacenamiento y fallo del proveedor. La revisión local encontró ausentes las tres variables Cloudinary del backend. Ver [configuración y alcance](../blog-backend/docs/IMAGENES_Y_CLOUDINARY.md); las pruebas de medios usan un proveedor local simulado y no acreditan conexión real con Cloudinary.
+
+### Identidad del cliente y errores HTTP
+
+Auth, perfil y contenido pueden firmar la identidad del cliente para Nest. `BFF_CLIENT_IP_SOURCE` permanece en `none` por defecto; habilitar `vercel` o `trusted-proxy` solo después de configurar `BFF_IDENTITY_SECRET` en ambos servidores y comprobar la topología. Véase [S01 y proxy](../blog-backend/docs/SEGURIDAD_Y_PROXY.md). Los errores conservan correlación y Retry-After; un 403 de permisos no elimina sesión, mientras AccountSuspended sí lo hace.

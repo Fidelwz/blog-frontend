@@ -8,6 +8,7 @@ export interface ApiErrorBody {
   ruta?: string;
   fecha?: string;
   idCorrelacion?: string;
+  retryAfter?: number;
 }
 export type RolGlobal = "usuario" | "administrador";
 export type RolGrupo = "miembro" | "moderador" | "administrador";

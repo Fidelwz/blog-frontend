@@ -34,6 +34,16 @@ test("el adaptador conserva los roles y estados del contrato original", () => {
   }
 });
 
+test("el administrador de Nest conserva sus permisos y estado sin filtrar secretos", () => {
+  for (const [status, expected] of [["active", "activo"], ["suspended", "suspendido"]]) {
+    const profile = parseBackendAuthUser({ id: 43, firstName: "Bruno", lastName: "Pruebas", email: "bob@example.test", role: "administrator", status, photoUrl: null, jwt: "private", passwordHash: "private" });
+    assert.equal(profile.role, "administrador");
+    assert.equal(profile.status, expected);
+    assert.equal("jwt" in profile, false);
+    assert.equal("passwordHash" in profile, false);
+  }
+});
+
 test("el adaptador no asigna permisos ni estado activo a valores desconocidos", () => {
   const profile = { id: 42, firstName: "Ana", lastName: "Pruebas", email: "ana@example.test", role: "user", status: "active", photoUrl: null };
   for (const invalid of [

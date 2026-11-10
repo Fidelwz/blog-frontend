@@ -1,17 +1,7 @@
 import { requireUser } from "@/features/auth/server";
-import { ComingSoon } from "@/components/coming-soon";
+import { getCategories } from "@/features/publications/server";
+import { PublicationForm } from "@/features/publications/publication-form";
 export default async function CreatePublication() {
-  await requireUser("/publicaciones/nueva");
-  return (
-    <ComingSoon
-      title="Hay algo que solo tú puedes compartir."
-      description="El editor de publicaciones llegará con herramientas para dar forma a tus ideas y adjuntar recursos académicos."
-      icon="file"
-      features={[
-        "Título y contenido",
-        "Categorías académicas",
-        "Imágenes, PDF y enlaces",
-      ]}
-    />
-  );
+  const user = await requireUser("/publicaciones/nueva");
+  return <PublicationForm ownerId={String(user.id)} categories={await getCategories()}/>;
 }

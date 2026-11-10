@@ -16,11 +16,11 @@ export async function readBody(request: Request, maximum = 8192) {
   return Buffer.concat(chunks);
 }
 
-export async function readJson(request: Request, allowed: readonly string[]) {
+export async function readJson(request: Request, allowed: readonly string[], maximum = 8192) {
   if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") {
     throw authError(415, "La solicitud debe enviarse en formato JSON.");
   }
-  const bytes = await readBody(request);
+  const bytes = await readBody(request, maximum);
   let value: unknown;
   try { value = JSON.parse(bytes.toString("utf8")); } catch { throw authError(400, "La solicitud no contiene JSON válido."); }
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(key => !allowed.includes(key))) {

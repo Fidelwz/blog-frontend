@@ -2,9 +2,11 @@ import "server-only";
 import { ApiError } from "../../../lib/api/client.ts";
 import { parseBackendAuthUser } from "./profile.ts";
 import { SESSION_COOKIE, validCookieValue } from "./cookie.ts";
+import { upstreamError } from "../../../lib/server/upstream-error.ts";
+import { forwardedIdentity } from "../../../lib/server/forwarded-identity.ts";
 
-export function authError(status: number, mensaje: string) {
-  return new ApiError({ statusCode: status, error: "AuthError", mensaje });
+export function authError(status: number, mensaje: string, code = "AuthError") {
+  return new ApiError({ statusCode: status, error: code, mensaje });
 }
 
 export async function backendAuth(path: "login" | "me" | "logout", options: { cookie?: string; credentials?: { email: string; password: string } } = {}) {
@@ -16,12 +18,15 @@ export async function backendAuth(path: "login" | "me" | "logout", options: { co
     throw authError(503, "La configuración del servicio de acceso no es válida.");
   }
   const headers = new Headers({ Accept: "application/json" });
+  const target = `${base.href.replace(/\/$/, "")}/auth/${path}`;
+  const method = path === "me" ? "GET" : "POST";
+  (await forwardedIdentity(target, method)).forEach((value, key) => headers.set(key, value));
   if (options.cookie && validCookieValue(options.cookie)) headers.set("Cookie", `${SESSION_COOKIE}=${options.cookie}`);
   if (options.credentials) headers.set("Content-Type", "application/json");
   let response: Response;
   try {
-    response = await fetch(`${base.href.replace(/\/$/, "")}/auth/${path}`, {
-      method: path === "me" ? "GET" : "POST", headers,
+    response = await fetch(target, {
+      method, headers,
       body: options.credentials ? JSON.stringify(options.credentials) : undefined,
       cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(15_000),
     });
@@ -40,7 +45,7 @@ export async function backendAuth(path: "login" | "me" | "logout", options: { co
     };
     const status = messages[response.status] ? response.status : 502;
     // Do not expose upstream HTML, stack traces, tokens, or redirects.
-    throw authError(status, messages[status] ?? "El servicio de acceso no está disponible. Inténtalo de nuevo.");
+    throw await upstreamError(response, status, messages[status] ?? "El servicio de acceso no está disponible. Inténtalo de nuevo.", "AuthError");
   }
   if (response.status !== (path === "logout" ? 204 : 200)) throw authError(502, "El servicio devolvió una respuesta inesperada.");
   return response;
@@ -49,7 +54,7 @@ export async function backendAuth(path: "login" | "me" | "logout", options: { co
 export async function backendUser(response: Response) {
   try {
     const user = parseBackendAuthUser(await response.json());
-    if (user.status === "suspendido") throw authError(403, "Tu cuenta está suspendida. Comunícate con el administrador.");
+    if (user.status === "suspendido") throw authError(403, "Tu cuenta está suspendida. Comunícate con el administrador.", "AccountSuspended");
     return user;
   } catch (error) {
     if (error instanceof ApiError) throw error;

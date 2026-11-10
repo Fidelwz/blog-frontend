@@ -1,6 +1,7 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError } from "../../../lib/api/client.ts";
+import { invalidatesSession } from "../session-errors.ts";
 import { isEmail, isResetToken, passwordRules } from "../../../lib/validation.ts";
 import { accountBackend } from "./account-backend.ts";
 import { readJson } from "./request-body.ts";
@@ -19,8 +20,11 @@ function clearSession(response: NextResponse) {
 export function errorResponse(error: unknown, clearInvalidSession = false) {
   const status = error instanceof ApiError ? error.status : 502;
   const message = error instanceof ApiError ? error.message : "No pudimos completar la solicitud. Inténtalo de nuevo.";
-  const response = json({ statusCode: status, message }, status);
-  return clearInvalidSession && (status === 401 || status === 403) ? clearSession(response) : response;
+  const response = json({ statusCode: status, message, error: error instanceof ApiError ? error.code : "UpstreamError",
+    ...(error instanceof ApiError ? { idCorrelacion: error.correlationId, retryAfter: error.retryAfter } : {}) }, status);
+  if (error instanceof ApiError && error.correlationId) response.headers.set("X-Request-ID", error.correlationId);
+  if (error instanceof ApiError && status === 429 && error.retryAfter) response.headers.set("Retry-After", String(error.retryAfter));
+  return clearInvalidSession && invalidatesSession(error) ? clearSession(response) : response;
 }
 
 export function requireSameOrigin(request: NextRequest) {
