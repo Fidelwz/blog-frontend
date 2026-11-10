@@ -23,12 +23,14 @@ async function write(request: NextRequest, method: "POST" | "PATCH" | "DELETE", 
     try { id = rawId === undefined ? undefined : contentId(rawId); } catch { throw authError(400, "Identificador inválido."); }
     let body: Record<string, unknown> | undefined;
     if (method !== "DELETE") {
-      body = await readJson(request, method === "POST" ? ["title", "content", "categoryId"] : ["title", "content", "categoryId", "version"], 256 * 1024);
+      body = await readJson(request, method === "POST" ? ["title", "content", "categoryId", "groupId"] : ["title", "content", "categoryId", "version"], 256 * 1024);
       if ((method === "POST" || body.title !== undefined) && (typeof body.title !== "string" || body.title.trim().length < 3 || body.title.trim().length > 150)) throw authError(400, "El título debe tener entre 3 y 150 caracteres.");
       if ((method === "POST" || body.content !== undefined) && (typeof body.content !== "string" || !body.content.trim() || body.content.length > 20000)) throw authError(400, "El contenido debe tener entre 1 y 20 000 caracteres de HTML.");
       if ((method === "POST" || body.categoryId !== undefined) && (typeof body.categoryId !== "number" || !Number.isSafeInteger(body.categoryId) || body.categoryId <= 0)) throw authError(400, "Selecciona una materia válida.");
+      if (body.groupId !== undefined && (typeof body.groupId !== "number" || !Number.isSafeInteger(body.groupId) || body.groupId <= 0)) throw authError(400, "Selecciona un grupo válido.");
       if (method === "PATCH" && (typeof body.version !== "number" || !Number.isSafeInteger(body.version) || body.version < 1)) throw authError(400, "Falta la versión actual de la publicación.");
     }
+    if (method === "DELETE" && request.headers.get("content-type")?.startsWith("application/json")) body = await readJson(request,["observation"]);
     const response = await backendFetch(id ? `/posts/${id}` : "/posts", { method, body, cookie, operation, expected: method === "POST" ? 201 : method === "DELETE" ? 204 : 200 });
     if (method === "DELETE") return new Response(null, { status: 204, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
     const result: unknown = await response.json();

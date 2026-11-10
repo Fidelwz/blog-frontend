@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 const writer = createPublicationWriter();
-type Props = { categories: Category[]; post?: Post; ownerId: string };
+type Props = { categories: Category[]; post?: Post; ownerId: string; groups?: { id: string; name: string; categoryId: string }[]; initialGroup?: string };
 
 export function PublicationForm(props: Props) {
   const { session } = useSession();
@@ -34,12 +34,13 @@ export function PublicationForm(props: Props) {
   return <OwnedPublicationForm {...props} active={session.status === "authenticated" && !differentAccount} suspended={session.status === "suspended"}/>;
 }
 
-function OwnedPublicationForm({ categories, post, ownerId, active, suspended }: Props & { active: boolean; suspended: boolean }) {
+function OwnedPublicationForm({ categories, post, ownerId, groups = [], initialGroup = "", active, suspended }: Props & { active: boolean; suspended: boolean }) {
   const rich = post ? hasRichFormatting(post.content) : false;
   const initialText = post && !rich ? htmlToText(post.content) : "";
   const [title, setTitle] = useState(post?.title ?? "");
   const [content, setContent] = useState(initialText);
-  const [category, setCategory] = useState(post?.categoryId ?? "");
+  const [category, setCategory] = useState(post?.categoryId ?? groups.find(g => g.id === initialGroup)?.categoryId ?? "");
+  const [destination, setDestination] = useState(initialGroup);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [operation, setOperation] = useState<PostOperation | null>(null);
@@ -48,7 +49,7 @@ function OwnedPublicationForm({ categories, post, ownerId, active, suspended }: 
   const busy = useRef(false);
   const alive = useRef(true);
   const client = useQueryClient();
-  const dirty = title !== (post?.title ?? "") || content !== initialText || category !== (post?.categoryId ?? "");
+  const dirty = title !== (post?.title ?? "") || content !== initialText || category !== (post?.categoryId ?? "") || destination !== initialGroup;
   const { allowNavigation } = useDraftNavigation(!confirmed && (dirty || pending || uncertain));
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const sameOwner = () => {
@@ -97,6 +98,10 @@ function OwnedPublicationForm({ categories, post, ownerId, active, suspended }: 
       setError(new Error("Revisa el título (3–150), la materia y el contenido (máximo 20 000 caracteres de HTML).")); return;
     }
     const body: Record<string, unknown> = post ? { version: post.version } : { title: title.trim(), content: html, categoryId: Number(category) };
+    if (!post && destination) {
+      if (!groups.some(g => g.id === destination) || !Number.isSafeInteger(Number(destination))) { setError(new Error("Selecciona un grupo válido.")); return; }
+      body.groupId = Number(destination);
+    }
     if (post) {
       if (title.trim() !== post.title) body.title = title.trim();
       if (category !== post.categoryId) body.categoryId = Number(category);
@@ -113,13 +118,15 @@ function OwnedPublicationForm({ categories, post, ownerId, active, suspended }: 
   const locked = pending || uncertain || Boolean(confirmed);
   return <form onSubmit={submit} className="grid gap-4" aria-busy={pending} data-draft-form>
     <h1>{post ? "Editar publicación" : "Crear publicación"}</h1>
-    {!post && <Notice>Después de guardar, podrás añadir imágenes desde la sección Imágenes de tu publicación.</Notice>}
+    {!post && <Notice>Después de guardar, podrás añadir imágenes, PDF y enlaces en Recursos. Un fallo de subida no elimina la publicación.</Notice>}
     {confirmed && <Notice kind="success">El servidor confirmó el guardado. La publicación pudo cambiar después en otra pestaña. <Button type="button" onClick={() => { allowNavigation(); window.location.assign(`/publicaciones/${confirmed}`); }}>Ver versión actual</Button></Notice>}
     {error && <Notice kind="error">{error.message} {error instanceof ApiError && error.status === 409 && error.code !== "OperationKeyConflict" && <Button type="button" variant="outline" onClick={() => { if (window.confirm("Recargar descartará este borrador. ¿Continuar?")) { allowNavigation(); window.location.reload(); } }}>Cargar versión actual</Button>}</Notice>}
     {uncertain && operation && <Notice>No sabemos si se guardó. Conservamos el borrador y evitamos un envío nuevo hasta comprobarlo.
       <div className="mt-2 flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={pending} onClick={() => void perform(operation, true)}>Comprobar guardado</Button>
       <Button type="button" disabled={pending} onClick={() => void perform(operation)}>Reintentar mismo guardado</Button></div>
     </Notice>}
+    {!post && <><label htmlFor="publication-destination">Publicar en</label><select id="publication-destination" className="rounded-lg border p-3" disabled={locked} value={destination} onChange={e => { setDestination(e.target.value); const group = groups.find(g => g.id === e.target.value); if (group) setCategory(group.categoryId); }}><option value="">Comunidad (pública)</option>{groups.map(g => <option key={g.id} value={g.id}>{g.name} (privado)</option>)}</select><p className="text-sm text-slate-500">También puedes elegir un grupo desde su muro. <Link href="/grupos?mine=true" className="underline">Ver mis grupos</Link></p></>}
+    {post?.groupId && <Notice>Publicación de grupo. El destino se conserva al editar.</Notice>}
     <label htmlFor="publication-title">Título</label><Input id="publication-title" value={title} onChange={e => setTitle(e.target.value)} minLength={3} maxLength={150} required disabled={locked}/>
     <label htmlFor="publication-category">Materia</label><select id="publication-category" className="rounded-md border p-2" value={category} onChange={e => setCategory(e.target.value)} required disabled={locked}><option value="">Selecciona una materia</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
     {rich ? <Notice>Esta publicación tiene formato enriquecido. Se conservará intacto; este editor permite cambiar su título y materia.</Notice> : <><label htmlFor="publication-content">Contenido</label><Textarea id="publication-content" value={content} onChange={e => setContent(e.target.value)} required rows={12} disabled={locked}/><p>{textToHtml(content).length} / 20 000 caracteres de HTML</p></>}

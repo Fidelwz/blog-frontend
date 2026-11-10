@@ -1,5 +1,6 @@
 "use client";
 
+import { NotificationCount } from "@/features/notifications/inbox";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -199,9 +200,10 @@ export function Shell({ children }: { children: ReactNode }) {
               aria-current={active(item.href) ? "page" : undefined}
             >
               <Icon name={item.icon} size={20} />
-              <span>{item.label}</span>
+              <span>{item.label}{item.href === "/notificaciones" && <NotificationCount/>}</span>
             </Link>
           ))}
+          {user?.role === "administrador" && <Link href="/moderacion" className="nav-item"><Icon name="shield" size={20}/>Moderación</Link>}
         </nav>
         <div className="sidebar-bottom">
           <div className="community-note">

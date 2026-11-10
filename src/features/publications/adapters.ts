@@ -31,7 +31,9 @@ export function parsePost(value: unknown) {
   if (!status || !Array.isArray(p.attachments)) throw new Error("Estado o adjuntos inválidos");
   return {
     id: contentId(p.id), authorId: contentId(p.authorId), categoryId: contentId(p.categoryId),
+    group: p.group == null ? null : { id: contentId(record(p.group).id), name: text(record(p.group).name) },
     groupId: p.groupId === null ? null : contentId(p.groupId), title: text(p.title), content: text(p.content), status,
+    permissions: p.permissions == null ? null : { edit: record(p.permissions).edit === true, moderate: record(p.permissions).moderate === true },
     version: integer(p.version, 1), createdAt: date(p.createdAt), updatedAt: p.updatedAt === null ? null : date(p.updatedAt),
     author: { id: contentId(author.id), firstName: text(author.firstName), lastName: text(author.lastName), photoUrl: author.photoUrl === null ? null : url(author.photoUrl) },
     category: { id: contentId(category.id), name: text(category.name) },
@@ -42,7 +44,7 @@ export function parsePost(value: unknown) {
 export function parseAttachment(value: unknown) {
   const a = record(value);
   if (!["image", "document", "link"].includes(text(a.type))) throw new Error("Tipo de adjunto inválido");
-  return { id: contentId(a.id), type: text(a.type), title: text(a.title), url: url(a.url), order: integer(a.order, 1) };
+  return { id: contentId(a.id), type: text(a.type), title: text(a.title), url: typeof a.url === "string" && /^\/api\/v1\/posts\/[1-9]\d*\/attachments\/[1-9]\d*\/content$/.test(a.url) && a.type !== "link" ? a.url.replace("/api/v1/", "/api/") : url(a.url), order: integer(a.order, 1) };
 }
 export type Post = ReturnType<typeof parsePost>;
 export function parsePostPage(value: unknown) {

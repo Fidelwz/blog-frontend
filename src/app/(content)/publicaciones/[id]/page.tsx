@@ -1,4 +1,9 @@
+import { requireUser } from "@/features/auth/server";
+import { PostAccessBoundary } from "@/features/publications/post-access-boundary";
+import { RoomStatus } from "@/features/realtime/room-status";
+import { ReportButton } from "@/features/moderation/report-button";
 import Link from "next/link";
+import { Conversation } from "@/features/comments/conversation";
 import type { Metadata } from "next";
 import { getPost } from "@/features/publications/detail-server";
 import { safeContent } from "@/features/publications/sanitize";
@@ -17,15 +22,16 @@ export default async function Article({ params }: Props) {
   const result = await getPost((await params).id);
   if (result.kind === "forbidden") return <Notice>No tienes acceso a esta publicación. <Link href="/acceso">Iniciar sesión</Link></Notice>;
   const post = result.post;
-  return <div className="reading-page"><Link href="/buscar" className="back-link">← Volver a publicaciones</Link>
+  const owner = post.groupId || post.status !== "visible" ? String((await requireUser(`/publicaciones/${post.id}`)).id) : null;
+  return <PostAccessBoundary id={post.id} owner={owner}><div className="reading-page"><Link href={post.groupId ? `/grupos/${post.groupId}` : "/buscar"} className="back-link">← {post.groupId ? "Volver al grupo" : "Volver a publicaciones"}</Link>
     <article><Card className="article-detail gap-0 ring-0">
       <Link href={`/buscar?categoryId=${post.categoryId}`}>{post.category.name}</Link><h1>{post.title}</h1>
       <p><Link href={`/usuarios/${post.author.id}`}>{post.author.firstName} {post.author.lastName}</Link> · <time dateTime={post.createdAt}>{new Intl.DateTimeFormat("es", { timeZone: "UTC", dateStyle: "medium" }).format(new Date(post.createdAt))}</time></p>
       {post.status === "retenido" && <Notice>Esta publicación está pendiente de revisión y no aparece en el feed público.</Notice>}
-      <PostActions id={post.id} authorId={post.authorId}/>
+      {post.permissions?.edit !== false && <PostActions id={post.id} authorId={post.authorId}/>}
+      {post.status === "visible" && <ReportButton type="post" id={post.id}/>}
       <div className="article-body" dangerouslySetInnerHTML={{ __html: safeContent(post.content) }}/>
-      {post.groupId === null && <PublicationImages postId={post.id} authorId={post.authorId} attachments={post.attachments}/>}
-      {post.attachments.some(a => post.groupId !== null || a.type !== "image") && <section aria-label="Recursos"><h2>Recursos</h2><ul>{post.attachments.filter(a => post.groupId !== null || a.type !== "image").map(a => <li key={a.id}><a href={a.url} target="_blank" rel="noopener noreferrer">{a.title} ({a.type === "image" ? "Imagen" : a.type === "document" ? "Documento" : "Enlace"})</a></li>)}</ul></section>}
-    </Card></article><Notice>La conversación estará disponible cuando se integre el módulo de comentarios.</Notice>
-  </div>;
+      <PublicationImages postId={post.id} authorId={post.authorId} attachments={post.attachments} editable={post.permissions?.edit !== false}/>
+    </Card></article><RoomStatus room={`publicacion:${post.id}`}/><Conversation postId={post.id} enabled={post.status === "visible"}/>
+  </div></PostAccessBoundary>;
 }
