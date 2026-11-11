@@ -6,7 +6,7 @@ export function userInitials(user: AuthUser) {
 
 export function isPrivatePath(path: string) {
   if (/^\/publicaciones\/[^/]+\/editar(?:\/|$)/.test(path)) return true;
-  return ["/moderacion", "/inicio", "/perfil", "/grupos", "/mis-publicaciones", "/notificaciones", "/publicaciones/nueva"]
+  return ["/admin", "/moderacion", "/inicio", "/perfil", "/grupos", "/mis-publicaciones", "/notificaciones", "/publicaciones/nueva"]
     .some(prefix => path === prefix || path.startsWith(`${prefix}/`));
 }
 

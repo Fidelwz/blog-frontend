@@ -14,11 +14,12 @@ async function write(request: NextRequest, method: "POST" | "PATCH" | "DELETE", 
     requireSameOrigin(request);
     const cookie = request.cookies.get(SESSION_COOKIE)?.value;
     if (!cookie || !validCookieValue(cookie)) throw authError(401, "Inicia sesión para continuar.");
-    let operation: { key: string; ownerId: string } | undefined;
+    let operation: { key?: string; ownerId: string } | undefined;
     if (request.headers.has("idempotency-key")) {
       try { operation = { key: operationKey(request.headers.get("idempotency-key")), ownerId: contentId(request.headers.get("x-post-owner")) }; }
       catch { throw authError(400, "No pudimos identificar este guardado. Recarga el formulario."); }
     }
+    else if (request.headers.has("x-post-owner")) operation = { ownerId: contentId(request.headers.get("x-post-owner")) };
     let id: string | undefined;
     try { id = rawId === undefined ? undefined : contentId(rawId); } catch { throw authError(400, "Identificador inválido."); }
     let body: Record<string, unknown> | undefined;
@@ -34,7 +35,7 @@ async function write(request: NextRequest, method: "POST" | "PATCH" | "DELETE", 
     const response = await backendFetch(id ? `/posts/${id}` : "/posts", { method, body, cookie, operation, expected: method === "POST" ? 201 : method === "DELETE" ? 204 : 200 });
     if (method === "DELETE") return new Response(null, { status: 204, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
     const result: unknown = await response.json();
-    return json(operation ? parseReceipt(result) : parsePost(result), method === "POST" ? 201 : 200);
+    return json(operation?.key ? parseReceipt(result) : parsePost(result), method === "POST" ? 201 : 200);
   } catch (error) {
     // An old in-flight operation must not expire a cookie installed by a newer
     // login in another tab. The owning editor invalidates its session cache.
@@ -44,6 +45,13 @@ async function write(request: NextRequest, method: "POST" | "PATCH" | "DELETE", 
 export const createPost = (request: NextRequest) => write(request, "POST");
 export const updatePost = async (request: NextRequest, context: Context) => write(request, "PATCH", (await context.params).id);
 export const deletePost = async (request: NextRequest, context: Context) => write(request, "DELETE", (await context.params).id);
+
+export async function readPost(request: NextRequest, context: Context) {
+  try {
+    const id = contentId((await context.params).id);
+    return json(parsePost(await (await backendFetch(`/posts/${id}`, {cookie:request.cookies.get(SESSION_COOKIE)?.value})).json()));
+  } catch (error) { return errorResponse(error); }
+}
 
 export async function readOperation(request: NextRequest, context: { params: Promise<{ key: string }> }) {
   try {

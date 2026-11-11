@@ -26,7 +26,7 @@ export async function addComment(request: NextRequest, { params }: Context) {
     if (typeof body.content !== 'string' || !body.content.trim() || body.content.length > 2000) throw authError(400,'Escribe entre 1 y 2000 caracteres.');
     if (body.parentCommentId !== undefined) contentId(body.parentCommentId);
     return json(parseComment(await (await backendFetch(`/posts/${id}/comments`,{ method:'POST',cookie,body,expected:201,operation:{ownerId:contentId(request.headers.get('x-post-owner'))} })).json()),201);
-  } catch (error) { return errorResponse(error); }
+  } catch (error) { return errorResponse(error, false); }
 }
 export async function deleteComment(request: NextRequest, { params }: Context) {
   try {
@@ -36,5 +36,5 @@ export async function deleteComment(request: NextRequest, { params }: Context) {
     const body = request.headers.get('content-type')?.startsWith('application/json') ? await readJson(request,['observation']) : {};
     await backendFetch(`/comments/${id}`,{ method:'DELETE',cookie,body,expected:204,operation:{ownerId:contentId(request.headers.get('x-post-owner'))} });
     return new Response(null,{ status:204,headers:{ 'Cache-Control':'private, no-store',Vary:'Cookie' } });
-  } catch (error) { return errorResponse(error); }
+  } catch (error) { return errorResponse(error, false); }
 }

@@ -3,7 +3,7 @@ import { useRoom } from '@/features/realtime/provider';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useSession } from '@/features/auth';
 import { useQueryClient } from '@tanstack/react-query';
-import { clearPrivateData } from '@/features/auth/cache';
+import { clearGroupContent } from '@/features/realtime/access-changes';
 import { isOwnGroupChange } from './member-actions';
 import type { Group } from './adapters';
 
@@ -12,7 +12,7 @@ export function GroupAccessBoundary({ owner, groupId, role, children }: { owner:
   const { session } = useSession();
   const client = useQueryClient();
   const [allowed, setAllowed] = useState(true);
-  useRoom(`grupo:${groupId}`,event => { if (event.event === 'acceso:revocado') { setAllowed(false); void clearPrivateData(client); } });
+  useRoom(`grupo:${groupId}`,event => { if (event.event === 'acceso:revocado') { setAllowed(false); void clearGroupContent(client); } });
   useEffect(() => {
     const abort = new AbortController();
     let checking = false;
@@ -23,13 +23,13 @@ export function GroupAccessBoundary({ owner, groupId, role, children }: { owner:
         const response = await fetch(`/api/groups/${groupId}`, { cache: 'no-store', signal: abort.signal });
         const group: Group = await response.json();
         if (!response.ok || group.myRole !== role) {
-          setAllowed(false); await clearPrivateData(client);
+          setAllowed(false); await clearGroupContent(client);
         }
       } catch { if (!abort.signal.aborted) setAllowed(false); }
       finally { checking = false; }
     };
     const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('group-access');
-    if (channel) channel.onmessage = event => { if (isOwnGroupChange(event.data)) return; setAllowed(false); void clearPrivateData(client); };
+    if (channel) channel.onmessage = event => { if (isOwnGroupChange(event.data)) return; setAllowed(false); void clearGroupContent(client); };
     const timer = setInterval(() => void check(), 20000);
     window.addEventListener('focus', check);
     return () => { abort.abort(); channel?.close(); clearInterval(timer); window.removeEventListener('focus', check); };

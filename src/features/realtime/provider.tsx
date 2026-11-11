@@ -1,15 +1,18 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/features/auth';
 import { clearPrivateData, sessionKey } from '@/features/auth/cache';
+import { clearGroupContent, refreshOnMembershipChange } from './access-changes';
 type RealtimeEvent = { event:string; data:{ room?:string; count?:number } };
 type Listener = (event:RealtimeEvent) => void;
 type State = 'offline'|'connecting'|'live';
 const Context = createContext<{ state:State; subscribe:(room:string,listener:Listener) => () => void }>({state:'offline',subscribe:() => () => {}});
 export function RealtimeProvider({children}: {children:ReactNode}) {
   const {session} = useSession(), client = useQueryClient(), router = useRouter();
+  const pathname = usePathname(), currentPath = useRef(pathname);
+  useEffect(() => { currentPath.current = pathname; },[pathname]);
   const owner = session.status === 'authenticated' ? String(session.user.id) : null;
   const socket = useRef<WebSocket|null>(null), rooms = useRef(new Map<string,Set<Listener>>());
   const [state,setState] = useState<State>('offline');
@@ -43,7 +46,11 @@ export function RealtimeProvider({children}: {children:ReactNode}) {
             for (const callback of listeners) callback({event:'reconexion',data:{room}});
           }
         }
-        if (event.event === 'acceso:actualizado') { window.dispatchEvent(new Event('blog:access-changed')); void clearPrivateData(client); router.refresh(); }
+        if (event.event === 'acceso:actualizado') {
+          window.dispatchEvent(new Event('blog:access-changed'));
+          void clearGroupContent(client);
+          if (refreshOnMembershipChange(currentPath.current)) router.refresh();
+        }
         if (event.event.startsWith('notificacion:')) void client.invalidateQueries({queryKey:['notifications']});
         if (event.event === 'cuenta:suspendida') { void clearPrivateData(client); void client.invalidateQueries({queryKey:sessionKey}); }
         const room = event.data.room;

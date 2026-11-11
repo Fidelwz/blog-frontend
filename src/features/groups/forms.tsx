@@ -1,14 +1,14 @@
 'use client';
 import { useActionState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { clearPrivateData } from '@/features/auth/cache';
+import { clearGroupContent } from '@/features/realtime/access-changes';
 import { announceGroupChange } from './member-actions';
 import { changeGroup } from './actions';
 import type { Category } from '@/features/categories/adapters';
 export function GroupForm({ owner, categories, id, member }: { owner: string; categories?: Category[]; id?: string; member?: boolean }) {
   const client = useQueryClient();
   const [error, action, pending] = useActionState(async (previous: string, form: FormData) => {
-    await clearPrivateData(client); if (id) announceGroupChange();
+    await clearGroupContent(client); if (id) announceGroupChange();
     return changeGroup(previous, form);
   }, '');
   return <form action={action} onSubmit={event => { if (member && !window.confirm('¿Salir del grupo? Perderás acceso a sus publicaciones y recursos.')) event.preventDefault(); }} className={id ? "space-y-3" : "space-y-4 rounded-xl border bg-white p-6"}>

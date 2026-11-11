@@ -12,7 +12,6 @@ import { Icon, type IconName } from "@/components/ui/icon";
 import { Notice } from "@/components/notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/user-avatar";
 import {
   DropdownMenu,
@@ -22,7 +21,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DEMO_MODE } from "@/lib/demo";
 import {
   useSession,
   useLogout,
@@ -104,12 +102,6 @@ export function Shell({ children }: { children: ReactNode }) {
           <kbd aria-hidden="true">↵</kbd>
         </form>
         <div className="header-actions">
-          {DEMO_MODE && (
-            <Badge variant="secondary" className="demo-pill">
-              <span />
-              Publicaciones de ejemplo
-            </Badge>
-          )}
           {!user ? (
             <>
               <Link prefetch={false} className="login-link" href="/acceso">
@@ -203,7 +195,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <span>{item.label}{item.href === "/notificaciones" && <NotificationCount/>}</span>
             </Link>
           ))}
-          {user?.role === "administrador" && <Link href="/moderacion" className="nav-item"><Icon name="shield" size={20}/>Moderación</Link>}
+          {user?.role === "administrador" && <Link href="/admin" className="nav-item"><Icon name="shield" size={20}/>Administración</Link>}
         </nav>
         <div className="sidebar-bottom">
           <div className="community-note">
@@ -222,15 +214,6 @@ export function Shell({ children }: { children: ReactNode }) {
       </aside>
       <main id="contenido" className="main-area">
         <div className="page-inner">
-          {DEMO_MODE && (
-            <div className="demo-notice">
-              <Icon name="info" size={14} />
-              <span>
-                Publicaciones de ejemplo · Las publicaciones aún no están
-                conectadas.
-              </span>
-            </div>
-          )}
           {logoutError && <Notice kind="error">{logoutError}</Notice>}
           {notice && (
             <Notice kind={notice === "suspended" ? "error" : "info"}>

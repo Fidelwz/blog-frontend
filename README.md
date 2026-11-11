@@ -15,11 +15,10 @@ npm run dev
 Abrir http://localhost:3000/acceso. Usar una cuenta ya registrada en NestJS. Las credenciales no se incluyen en el repositorio. Si `.env.local` ya existe, conservar sus valores y agregar las variables que falten. Reiniciar Next después de modificarlo.
 
 ```dotenv
-NEXT_PUBLIC_DEMO_MODE=true
 BACKEND_API_URL=https://blog-backend-nest-542aed7d1eb3.herokuapp.com/api/v1
 ```
 
-`BACKEND_API_URL` solo se usa en el servidor. Para Nest local: `http://localhost:4000/api/v1`. Usar `localhost` de forma consistente. `NEXT_PUBLIC_DEMO_MODE` ya no controla el feed ni el detalle activos, que consultan Nest. Quedan utilidades y pruebas antiguas de demostración pendientes de limpieza; ninguna permite entrar a páginas privadas sin autenticación.
+`BACKEND_API_URL` solo se usa en el servidor. Para Nest local: `http://localhost:4000/api/v1`. Usar `localhost` de forma consistente. Las vistas activas consultan Nest y no muestran avisos de contenido simulado. Las utilidades antiguas de demostración no conceden sesión ni sustituyen los servicios actuales.
 
 ## Flujo de sesión
 
@@ -168,3 +167,10 @@ Después de guardar una publicación pública, su autor puede subir JPG/PNG (has
 ### Identidad del cliente y errores HTTP
 
 Auth, perfil y contenido pueden firmar la identidad del cliente para Nest. `BFF_CLIENT_IP_SOURCE` permanece en `none` por defecto; habilitar `vercel` o `trusted-proxy` solo después de configurar `BFF_IDENTITY_SECRET` en ambos servidores y comprobar la topología. Véase [S01 y proxy](../blog-backend/docs/SEGURIDAD_Y_PROXY.md). Los errores conservan correlación y Retry-After; un 403 de permisos no elimina sesión, mientras AccountSuspended sí lo hace.
+
+
+## Publicaciones y grupos — revisión del 10/11/2026
+
+La entrega integra grupos/integrantes/muro, publicación grupal, imagen/PDF/enlace privados nuevos, conversación, tiempo real, moderación y notificaciones. Ver [alcance y evidencia](../docs/AVANCE_PUBLICACIONES_GRUPOS_2026-11-10.md), [contratos actuales](../docs/contratos-api.md) y [migraciones/proxy/operación](../docs/OPERACION_PUBLICACIONES_GRUPOS.md). La configuración real y los recursos públicos heredados requieren los pasos operativos de esa guía. El panel global AD01 sigue pendiente.
+
+Contrato C01 y pruebas contra respuestas HTTP sintéticas: [documentación](../docs/ENTREGA_C01.md).

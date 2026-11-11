@@ -13,7 +13,7 @@ import { createPublicationWriter, newPostOperation, uncertainWrite, type PostOpe
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/notice";
 
-type Props = { id: string; authorId: string; returnTo?: "/inicio" | "/mis-publicaciones" };
+type Props = { id: string; authorId: string; returnTo?: "/inicio" | "/mis-publicaciones"; accessAllowed?:boolean };
 const writer = createPublicationWriter();
 
 export function PostActions(props: Props) {
@@ -28,7 +28,7 @@ export function PostActions(props: Props) {
   return <OwnedPostActions {...props} active={active}/>;
 }
 
-function OwnedPostActions({ id, authorId, returnTo = "/inicio", active }: Props & { active: boolean }) {
+function OwnedPostActions({ id, authorId, returnTo = "/inicio", active, accessAllowed = true }: Props & { active: boolean }) {
   const client = useQueryClient();
   const busy = useRef(false);
   const alive = useRef(true);
@@ -45,7 +45,7 @@ function OwnedPostActions({ id, authorId, returnTo = "/inicio", active }: Props 
     return session?.status === "authenticated" && String(session.user.id) === authorId;
   };
   async function remove(attempt?: PostOperation, check = false) {
-    if (busy.current || !sameOwner()) return;
+    if (busy.current || !sameOwner() || (!attempt && !accessAllowed)) return;
     if (!attempt && !window.confirm("¿Eliminar esta publicación? Dejará de estar disponible.")) return;
     const next = attempt ?? newPostOperation(authorId, "DELETE", undefined, id);
     busy.current = true; setPending(true); setError(null); setOperation(next);
@@ -81,9 +81,10 @@ function OwnedPostActions({ id, authorId, returnTo = "/inicio", active }: Props 
     <Button type="button" onClick={() => void refreshEditorSession(client)}>Comprobar sesión</Button>
   </Notice> : null;
   if (confirmed) return <Notice kind="success">Eliminación confirmada. <Link href={returnTo}>Volver a publicaciones</Link></Notice>;
+  if (!accessAllowed && !operation) return null;
   return <div className="my-4 flex flex-wrap gap-3" aria-busy={pending}>
-    {!pending && !uncertain && <Button asChild variant="outline"><Link href={`/publicaciones/${id}/editar`}>Editar</Link></Button>}
-    <Button variant="destructive" disabled={pending || uncertain} onClick={() => void remove()}>{pending ? "Comprobando o eliminando…" : "Eliminar"}</Button>
+    {accessAllowed && !pending && !uncertain && <Button asChild variant="outline"><Link href={`/publicaciones/${id}/editar`}>Editar</Link></Button>}
+    <Button variant="destructive" disabled={!accessAllowed || pending || uncertain} onClick={() => void remove()}>{pending ? "Comprobando o eliminando…" : "Eliminar"}</Button>
     {error && <Notice kind="error">{error instanceof ApiError && error.status === 404 && !uncertain ? <>La publicación ya no está disponible. <Link href={returnTo}>Volver a publicaciones</Link></> : error.message}</Notice>}
     {uncertain && operation && <Notice>No sabemos si se eliminó. Evitamos una operación nueva hasta comprobarlo.
       <div className="mt-2 flex flex-wrap gap-2"><Button variant="outline" disabled={pending} onClick={() => void remove(operation, true)}>Comprobar eliminación</Button>
