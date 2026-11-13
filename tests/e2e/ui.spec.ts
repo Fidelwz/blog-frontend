@@ -113,13 +113,12 @@ test("el backend simulado de cuenta no se sustituye por publicaciones de demostr
   // Real content, CRUD and recovery live in backend/test/web-smoke.cjs.
   // This fixture implements authentication/profile only.
   await page.goto("/buscar");
-  await expect(page.getByText("No pudimos cargar las materias.", { exact: false })).toBeVisible();
   await expect(page.getByRole("region", { name: "Publicaciones", exact: true }).getByRole("button", { name: "Reintentar", exact: true })).toBeVisible();
   await expect(page.getByRole("article")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Cargar más publicaciones" })).toHaveCount(0);
 });
 
-test("menú de cuenta navega con teclado y los módulos pendientes mantienen sus vistas", async ({
+test("menú de cuenta navega con teclado y los módulos integrados presentan su estado vacío", async ({
   page,
   context,
 }, testInfo) => {
@@ -153,20 +152,13 @@ test("menú de cuenta navega con teclado y los módulos pendientes mantienen sus
   await page.screenshot({ path: testInfo.outputPath("menu-desktop.png") });
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();
-  const routes = [
-    ["/grupos", "Juntos llegamos más lejos."],
-    ["/notificaciones", "No te pierdas una buena conversación."],
-  ];
-  for (const [path, title] of routes) {
-    await page.goto(path);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
-    await expect(
-      page.getByText("Módulo planificado · Aún no implementado"),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "Volver a la demostración" }),
-    ).toHaveAttribute("href", "/inicio");
-  }
+  await page.goto("/grupos");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Grupos de estudio");
+  await expect(page.getByText("No hay grupos con estos filtros")).toBeVisible();
+
+  await page.goto("/notificaciones");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Notificaciones");
+  await expect(page.getByText("No tienes notificaciones con este filtro.")).toBeVisible();
 });
 
 test("las pantallas y el diálogo se adaptan a móvil sin desbordamiento horizontal", async ({

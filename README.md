@@ -2,14 +2,33 @@
 
 Next.js 16, React 19, TypeScript, Tailwind CSS 4, Zustand 5, TanStack Query 5 y shadcn/ui con Radix. El acceso, registro, recuperación, edición del perfil y foto, y perfil público se integran con NestJS mediante el servidor Next. Categorías, feed, búsqueda, detalle, CRUD público y publicaciones propias consumen la API real a través del BFF.
 
-## Arranque local
+## Demostración local con Nest y PostgreSQL
+
+Requisitos comprobados: Node.js 24.21 y pnpm 11.25. La aplicación también declara Node.js 22.18 como mínimo. Usá la rama `diego-vega/phase-3-and-final` del backend y seguí su README para levantar Nest en el puerto 3200 con la base de demostración.
+
+1. Instalá con `pnpm install --frozen-lockfile --ignore-scripts`. Los binarios precompilados de Windows se verificaron con esta instalación. Si el gestor vuelve a intentar instalar antes de ejecutar un script, usá el ajuste de sesión documentado en el ZIP.
+2. Copiá `.env.example` a `.env.local`. Para la demostración integrada, usá:
+
+   ```dotenv
+   BACKEND_API_URL=http://127.0.0.1:3200/api/v1
+   APP_ORIGIN=http://127.0.0.1:3100
+   BFF_CLIENT_IP_SOURCE=none
+   ```
+
+3. Ejecutá `pnpm run build` y `pnpm exec next start --hostname 127.0.0.1 --port 3101`.
+4. En otra terminal, ejecutá `node scripts/local-proxy.mjs` y abrí [el blog local](http://127.0.0.1:3100/acceso). El proxy conserva el origen de la sesión y dirige las conexiones WebSocket de `/tiempo-real` a Nest. Los demás requests y upgrades de desarrollo llegan a Next.
+5. Entrá como `ana@example.test` (estudiante), `bruno@example.test` (estudiante) o `admin@example.test` (administración global). Contraseña exclusiva de la base sintética: `DemoBlog2026!`.
+
+Pruebas: `pnpm test`, `pnpm lint`, `pnpm run build`, `pnpm typecheck` y `pnpm exec playwright install chromium` seguido de `pnpm run test:auth`. Si el binario de Postman CLI se llama distinto o no está en PATH, definí `POSTMAN_EXECUTABLE` con su ruta absoluta. El navegador de la simulación puede configurarse con `PLAYWRIGHT_CHROMIUM_EXECUTABLE`. Las pruebas integradas de navegador se ejecutan desde el backend con `BLOG_FRONTEND_DIR` apuntando aquí.
+
+## Arranque local con una API existente
 
 Requiere Node.js 22.18 o superior y pnpm.
 
 ```bash
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
 cp .env.example .env.local
-npm run dev
+pnpm run dev --webpack
 ```
 
 Abrir http://localhost:3000/acceso. Usar una cuenta ya registrada en NestJS. Las credenciales no se incluyen en el repositorio. Si `.env.local` ya existe, conservar sus valores y agregar las variables que falten. Reiniciar Next después de modificarlo.
@@ -155,7 +174,7 @@ Para una sesión manual con la simulación, en terminales separadas:
 
 ```bash
 postman simulation run postman/simulations/auth.sim.yaml --port 4010 --no-history
-BACKEND_API_URL=http://127.0.0.1:4010/blog-auth/api/v1 npm run dev -- --port 3005
+BACKEND_API_URL=http://127.0.0.1:4010/blog-auth/api/v1 pnpm run dev --webpack -- --port 3005
 ```
 
 La simulación escucha en IPv4, por eso su URL interna usa `127.0.0.1`; abrir el frontend en `http://localhost:3005`. Cuenta ficticia local: `ana@example.test` / `SimulationPassword123!`. El mock conserva login, me y logout y añade registro, recuperación, restablecimiento, edición, foto y perfil público. Usa `pm.state` para cuentas sintéticas, cambios y tokens utilizados; no regenerar `default.js`. Los tokens de prueba son `a` repetida 43 veces (Ana), `r` repetida 43 veces (cuenta sintética `reset@example.test`, creada por la prueba) y `e` repetida 43 veces (vencido). Los no modelados devuelven `501`. El mock verifica multipart con boundary, pero no procesa imágenes en Cloudinary ni envía correo; la expiración se representa con fixtures. Los resultados locales prueban el contrato modelado, no todos los comportamientos de Heroku.
@@ -171,6 +190,6 @@ Auth, perfil y contenido pueden firmar la identidad del cliente para Nest. `BFF_
 
 ## Publicaciones y grupos — revisión del 10/11/2026
 
-La entrega integra grupos/integrantes/muro, publicación grupal, imagen/PDF/enlace privados nuevos, conversación, tiempo real, moderación y notificaciones. Ver [alcance y evidencia](../docs/AVANCE_PUBLICACIONES_GRUPOS_2026-11-10.md), [contratos actuales](../docs/contratos-api.md) y [migraciones/proxy/operación](../docs/OPERACION_PUBLICACIONES_GRUPOS.md). La configuración real y los recursos públicos heredados requieren los pasos operativos de esa guía. El panel global AD01 sigue pendiente.
+La entrega integra grupos/integrantes/muro, publicación grupal, imagen/PDF/enlace privados nuevos, conversación, tiempo real, moderación y notificaciones. Ver [alcance y evidencia](../docs/AVANCE_PUBLICACIONES_GRUPOS_2026-11-10.md), [contratos actuales](../docs/contratos-api.md) y [migraciones/proxy/operación](../docs/OPERACION_PUBLICACIONES_GRUPOS.md). La configuración real y los recursos públicos heredados requieren los pasos operativos de esa guía. El panel global incluye resumen, usuarios, suspensión y publicaciones. Consultá la guía de entrega para las pruebas de esta rama.
 
 Contrato C01 y pruebas contra respuestas HTTP sintéticas: [documentación](../docs/ENTREGA_C01.md).

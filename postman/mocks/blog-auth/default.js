@@ -121,5 +121,13 @@ http.createServer(async (req, res) => {
     return send(res, 200, { id: p.id, firstName: p.firstName, lastName: p.lastName, role: p.role, major: p.major,
       university: p.university, bio: p.bio, photoUrl: p.photoUrl, registeredAt: p.registeredAt, _count: p._count });
   }
+  // Minimal read models for the authenticated shell. Content writes run against real Nest.
+  if (req.method === 'GET' && path === '/api/v1/categories') return send(res, 200, []);
+  if (req.method === 'GET' && ['/api/v1/users/me/feed', '/api/v1/groups', '/api/v1/notifications', '/api/v1/notifications/unread/count'].includes(path)) {
+    if (!current) return send(res, 401, { message: 'Unauthorized' });
+    if (path.endsWith('/unread/count')) return send(res, 200, { count: 0 });
+    const emptyPage = { items: [], nextCursor: null };
+    return send(res, 200, path.endsWith('/notifications') ? { ...emptyPage, unreadCount: 0 } : emptyPage);
+  }
   send(res, 501, { message: 'This simulation does not model this endpoint.' });
 }).listen(process.env.PORT || 4500);

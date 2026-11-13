@@ -13,7 +13,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "postman simulation run postman/simulations/auth.sim.yaml --port 4020 --no-history --output ndjson",
+      command: `"${process.env.POSTMAN_EXECUTABLE ?? "postman"}" simulation run postman/simulations/auth.sim.yaml --port 4020 --no-history --output ndjson`,
       url: "http://127.0.0.1:4020/blog-auth/api/v1/auth/me",
       timeout: 60_000,
       stdout: "pipe",
