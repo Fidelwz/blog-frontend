@@ -141,7 +141,9 @@ export async function resetPassword(request: NextRequest) {
         throw authError(400, "Revisa los requisitos de la contraseña.");
       }
       await accountBackend("/auth/reset-password", { method: "POST", body, expectedStatus: 204, messages: { 410: invalidLink } });
-      return new NextResponse(null, { status: 204, headers: { "Cache-Control": "private, no-store" } });
+      // A password change ends the browser session: the old credential must not keep the
+      // account open, and /acceso?restablecida=ok has to stay reachable to confirm it.
+      return clearSession(new NextResponse(null, { status: 204, headers: { "Cache-Control": "private, no-store" } }));
     } finally { body.token = ""; body.newPassword = ""; }
   } catch (error) { return errorResponse(error); }
 }

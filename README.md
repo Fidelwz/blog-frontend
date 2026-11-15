@@ -104,7 +104,7 @@ La página está en `src/app/(profiles)/usuarios/[id]/page.tsx`, con el mismo `S
 | --- | --- | --- |
 | `POST /api/auth/register` | `POST /auth/register` | `201`, cuenta creada; `409`, correo repetido. |
 | `POST /api/auth/forgot-password` | `POST /auth/forgot-password` | `202`, mensaje neutro. |
-| `POST /api/auth/reset-password` | `POST /auth/reset-password` | `204`; `410`, enlace inválido, vencido o utilizado. |
+| `POST /api/auth/reset-password` | `POST /auth/reset-password` | `204` y cierra la sesión del BFF; `410`, enlace inválido, vencido o utilizado. |
 | `GET /api/users/me` | `GET /users/me` | Perfil filtrado de la sesión. |
 | `PATCH /api/users/me` | `PATCH /users/me` | Perfil actualizado. |
 | `PUT /api/users/me/photo` | `PUT /users/me/photo` | Multipart con un solo archivo `file`; perfil actualizado. |
@@ -114,6 +114,8 @@ Las mutaciones validan `Origin` y una lista blanca de campos. Los handlers respo
 El tipo `Profile` tiene un adaptador propio: ID numérico seguro, roles/estados normalizados y selección explícita de campos. Ni `photoPublicId` ni los campos de suspensión llegan al navegador; el tipo público tampoco incluye email o estado. `/perfil` precarga e hidrata `['profile','me']`, marcada con `meta: { private: true }`. Esta clave fija sigue la especificación de cuenta y perfil: se elimina al cambiar o cerrar sesión, el componente comprueba el ID contra la sesión y las mutaciones descartan respuestas de otra identidad. Las nuevas entidades privadas deben seguir la convención general de incluir el ID en su clave.
 
 Las contraseñas nuevas usan de 8 a 72 caracteres, máximo 72 bytes UTF-8, mayúscula Unicode, número y símbolo. El token requiere 43 caracteres base64url y solo se envía en el body al restablecer. Las variables de las mutaciones se limpian al finalizar y los campos de contraseña se vacían. `/recuperar/*` aplica `Referrer-Policy: no-referrer`; no registrar URLs de recuperación en analítica ni logs de aplicación.
+
+Un restablecimiento correcto cierra la sesión del BFF: la respuesta `204` borra la cookie `jwt`, de modo que `/acceso?restablecida=ok` siga siendo alcanzable y muestre la confirmación aunque el enlace se abra con la sesión activa. Borrar la cookie no revoca el token ya emitido: Nest debe invalidar las sesiones vigentes de esa cuenta al cambiar la contraseña, porque de lo contrario una copia robada del `jwt` sobrevive hasta su vencimiento.
 
 ### Fotos en Vercel
 

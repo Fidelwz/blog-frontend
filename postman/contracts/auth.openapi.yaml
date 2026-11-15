@@ -124,7 +124,7 @@ paths:
                 token: { type: string, minLength: 43, maxLength: 43, pattern: '^[A-Za-z0-9_-]{43}$', description: Un solo uso, vigencia de 30 minutos. }
                 newPassword: { $ref: '#/components/schemas/Password' }
       responses:
-        '204': { description: Contraseña actualizada, sin cuerpo. }
+        '204': { description: Contraseña actualizada, sin cuerpo. La respuesta borra la cookie `jwt` de la sesión. }
         '400': { $ref: '#/components/responses/Invalid' }
         '410': { description: Token inválido, vencido o utilizado. }
         '429': { description: Demasiados intentos. }
