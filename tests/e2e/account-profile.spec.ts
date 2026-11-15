@@ -93,6 +93,35 @@ test("restablecimiento cambia la contraseña y rechaza reutilizar el enlace", as
   expect((await request.post("/api/auth/login", { headers, data: { email: "reset@example.test", password: newPassword } })).status()).toBe(200);
 });
 
+test("restablecer contraseña con sesión activa la cierra y muestra la confirmación", async ({ page, context }) => {
+  const email = `reset-session-${crypto.randomUUID()}@example.test`;
+  const newPassword = "NewSimulation123!";
+
+  await page.goto("/registro");
+  await page.getByLabel("Nombre", { exact: true }).fill("Clara");
+  await page.getByLabel("Apellido", { exact: true }).fill("Ejemplo");
+  await page.getByLabel("Correo electrónico").fill(email);
+  await page.getByLabel("Contraseña", { exact: true }).fill(password);
+  await page.getByLabel("Confirmar contraseña", { exact: true }).fill(password);
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Crear cuenta", exact: true }).click();
+  await expect(page).toHaveURL(/\/acceso\?registro=ok$/);
+  await page.getByLabel("Correo electrónico").fill(email);
+  await page.getByLabel("Contraseña", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Iniciar sesión", exact: true }).click();
+  await expect(page).toHaveURL(`${origin}/inicio`);
+
+  await page.goto(`/recuperar/${"s".repeat(43)}`);
+  await page.getByLabel("Nueva contraseña", { exact: true }).fill(newPassword);
+  await page.getByLabel("Confirmar contraseña", { exact: true }).fill(newPassword);
+  await page.getByRole("button", { name: "Restablecer contraseña" }).click();
+
+  // Antes se redirigía a /inicio y la confirmación quedaba inalcanzable.
+  await expect(page).toHaveURL(/\/acceso\?restablecida=ok$/);
+  await expect(page.getByText("Contraseña actualizada. Inicia sesión.")).toBeVisible();
+  expect((await context.cookies()).some(c => c.name === "jwt")).toBe(false);
+});
+
 test("nuevos handlers rechazan origen, claves extra y errores upstream sin filtrarlos", async ({ request }) => {
   const registration = { firstName: "Ana", lastName: "Test", email: "limited@example.test", password };
   for (const [path, data] of [
