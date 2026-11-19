@@ -19,5 +19,5 @@ export default async function CreatePublication({ searchParams }: { searchParams
     } catch { unavailable = true; }
   }
   if (unavailable) return <Notice>No tienes acceso a ese grupo o no pudimos comprobarlo. <Link href="/grupos">Volver al catálogo</Link></Notice>;
-  return <div className="mx-auto max-w-3xl rounded-2xl border bg-white p-5 md:p-8"><PublicationForm ownerId={String(user.id)} categories={await getCategories()} groups={groups.map(g => ({ id: g.id, name: g.name, categoryId: g.category.id }))} initialGroup={typeof grupo === 'string' ? grupo : ''}/></div>;
+  return <div className="mx-auto max-w-3xl"><PublicationForm ownerId={String(user.id)} categories={await getCategories()} groups={groups.map(g => ({ id: g.id, name: g.name, categoryId: g.category.id }))} initialGroup={typeof grupo === 'string' ? grupo : ''}/></div>;
 }

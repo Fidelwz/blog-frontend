@@ -1,10 +1,8 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/features/auth';
-import { clearPrivateData, sessionKey } from '@/features/auth/cache';
-import { clearGroupContent, refreshOnMembershipChange } from './access-changes';
 type RealtimeEvent = { event:string; data:{ room?:string; count?:number } };
 type Listener = (event:RealtimeEvent) => void;
 type State = 'offline'|'connecting'|'live';
@@ -15,7 +13,7 @@ export function RealtimeProvider({children}: {children:ReactNode}) {
   useEffect(() => { currentPath.current = pathname; },[pathname]);
   const owner = session.status === 'authenticated' ? String(session.user.id) : null;
   const socket = useRef<WebSocket|null>(null), rooms = useRef(new Map<string,Set<Listener>>());
-  const [state,setState] = useState<State>('offline');
+  const state: State = 'offline';
   const subscribe = useCallback((room:string,listener:Listener) => {
     const first = !rooms.current.has(room);
     const listeners = rooms.current.get(room) ?? new Set<Listener>(); listeners.add(listener); rooms.current.set(room,listeners);
@@ -28,45 +26,20 @@ export function RealtimeProvider({children}: {children:ReactNode}) {
   },[]);
   useEffect(() => {
     if (!owner) return;
-    let closed = false, attempt = 0, timer:ReturnType<typeof setTimeout>|undefined;
-    const connect = () => {
-      if (closed) return;
-      const url = new URL('/tiempo-real',window.location.href); url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ws = new WebSocket(url); socket.current = ws;
-      ws.onopen = () => { setState('connecting'); };
-      ws.onmessage = message => {
-        let value:unknown; try { value = JSON.parse(String(message.data)); } catch { return; }
-        if (!value || typeof value !== 'object') return;
-        const event = value as RealtimeEvent;
-        if (typeof event.event !== 'string' || !event.data || typeof event.data !== 'object') return;
-        if (event.event === 'conexion:lista') {
-          attempt = 0; setState('live'); void client.invalidateQueries({queryKey:['notifications']});
-          for (const [room,listeners] of rooms.current) {
-            const [type,id] = room.split(':'); ws.send(JSON.stringify({event:'sala:unirse',data:{type,id}}));
-            for (const callback of listeners) callback({event:'reconexion',data:{room}});
-          }
-        }
-        if (event.event === 'acceso:actualizado') {
-          window.dispatchEvent(new Event('blog:access-changed'));
-          void clearGroupContent(client);
-          if (refreshOnMembershipChange(currentPath.current)) router.refresh();
-        }
-        if (event.event.startsWith('notificacion:')) void client.invalidateQueries({queryKey:['notifications']});
-        if (event.event === 'cuenta:suspendida') { void clearPrivateData(client); void client.invalidateQueries({queryKey:sessionKey}); }
-        const room = event.data.room;
-        if (typeof room === 'string' && /^(publicacion|grupo):[1-9]\d*$/.test(room)) {
-          for (const callback of rooms.current.get(room) ?? []) callback(event);
-        }
-      };
-      ws.onclose = event => {
-        if (closed) return; setState('offline');
-        if ([4001,4003].includes(event.code)) { void clearPrivateData(client); void client.invalidateQueries({queryKey:sessionKey}); return; }
-        if (attempt < 5) timer = setTimeout(connect,Math.min(30000,1000 * 2 ** attempt++));
-      };
-      ws.onerror = () => { /* onclose owns reconnection; HTTP remains usable. */ };
+    // Nest uses Socket.IO; a native WebSocket cannot speak that protocol.
+    // Reconcile from authorized HTTP responses until a same-origin Socket.IO proxy exists.
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      void client.invalidateQueries({queryKey:['notifications']});
+      for (const [room,listeners] of rooms.current) {
+        for (const callback of listeners) callback({event:'reconexion',data:{room}});
+      }
+      if (/^\/(inicio|grupos(?:\/[1-9]\d*)?)$/.test(currentPath.current) && !document.querySelector('[data-draft-form]')) router.refresh();
     };
-    connect();
-    return () => { closed = true; if (timer) clearTimeout(timer); socket.current?.close(); socket.current = null; };
+    const timer = setInterval(refresh,15000);
+    window.addEventListener('focus',refresh);
+    return () => { clearInterval(timer); window.removeEventListener('focus',refresh); };
+
   },[owner,client,router]);
   const value = useMemo(() => ({state:owner ? state : 'offline' as State,subscribe}),[owner,state,subscribe]);
   return <Context.Provider value={value}>{children}</Context.Provider>;

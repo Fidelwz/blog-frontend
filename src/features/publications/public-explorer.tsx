@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { LearningAside } from "@/components/learning-aside";
 import { getCategories, getPublicFeed } from "./server.ts";
 import { PublicFeed } from "./feed.tsx";
 import { Notice } from "@/components/notice";
@@ -13,7 +15,7 @@ export async function PublicExplorer({ params = {} }: { params?: SearchParams })
   if (query) filters.set("q", query);
   if (categoryId) filters.set("categoryId", categoryId);
   const [categories, page] = await Promise.allSettled([getCategories(), invalidQuery ? Promise.resolve(undefined) : getPublicFeed(filters)]);
-  return <><form action="/buscar" className="search-page-form flex-wrap" role="search">
+  return <><nav className="category-tabs" aria-label="Categorías académicas"><Link href={query ? `/buscar?q=${encodeURIComponent(query)}` : "/buscar"} aria-current={!categoryId ? "page" : undefined}>Todas</Link>{categories.status === "fulfilled" && categories.value.map(c => <Link key={c.id} href={`/buscar?categoryId=${c.id}${query ? `&q=${encodeURIComponent(query)}` : ""}`} aria-current={categoryId === c.id ? "page" : undefined}>{c.name}</Link>)}</nav><div className="content-grid"><div className="min-w-0"><form action="/buscar" className="search-page-form flex-wrap" role="search">
     <label className="sr-only" htmlFor="public-query">Buscar publicaciones</label><Input className="min-w-[12rem]" id="public-query" name="q" defaultValue={query} maxLength={254} placeholder="¿Qué quieres aprender hoy?"/>
     <label className="sr-only" htmlFor="public-category">Materia</label><select id="public-category" name="categoryId" defaultValue={categoryId} className="max-w-full rounded-md border bg-background p-2" disabled={categories.status === "rejected"}>
       <option value="">Todas las materias</option>{categories.status === "fulfilled" && categories.value.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -21,5 +23,5 @@ export async function PublicExplorer({ params = {} }: { params?: SearchParams })
   </form>
     {categories.status === "rejected" && <Notice kind="error">No pudimos cargar las materias. <a href="/buscar">Volver a intentar</a></Notice>}
     {invalidQuery ? <Notice>Escribe entre 2 y 254 caracteres para buscar.</Notice> : <PublicFeed key={`${query}:${categoryId}`} query={query} categoryId={categoryId} initialPage={page.status === "fulfilled" ? page.value : undefined}/>}
-  </>;
+  </div><LearningAside/></div></>;
 }

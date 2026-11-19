@@ -116,7 +116,7 @@ function OwnedPublicationForm({ categories, post, ownerId, groups = [], initialG
     <Button type="button" onClick={() => void refreshEditorSession(client)}>Comprobar sesión</Button>
   </section>;
   const locked = pending || uncertain || Boolean(confirmed);
-  return <form onSubmit={submit} className="grid gap-4" aria-busy={pending} data-draft-form>
+  return <form onSubmit={submit} className="publication-editor grid gap-4" aria-busy={pending} data-draft-form>
     <h1>{post ? "Editar publicación" : "Crear publicación"}</h1>
     {!post && <Notice>Después de guardar, podrás añadir imágenes, PDF y enlaces en Recursos. Un fallo de subida no elimina la publicación.</Notice>}
     {confirmed && <Notice kind="success">El servidor confirmó el guardado. La publicación pudo cambiar después en otra pestaña. <Button type="button" onClick={() => { allowNavigation(); window.location.assign(`/publicaciones/${confirmed}`); }}>Ver versión actual</Button></Notice>}

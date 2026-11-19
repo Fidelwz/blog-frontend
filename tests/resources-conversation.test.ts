@@ -19,11 +19,11 @@ test('integrantes no incorporan correo ni permisos desconocidos', () => {
   assert.throws(() => parseMembers({items:[{...member,role:'owner'}],nextCursor:null}));
 });
 test('conversación conserva contexto neutral sin propagar campos internos', () => {
-  const c = parseComment({id:'1',postId:'2',content:null,status:'eliminado',createdAt:'2026-11-10T12:00:00Z',author:{id:'3',name:'Ana',lastName:'Pérez',email:'private'},parent:{id:'4',content:null},observation:'internal'});
+  const c = parseComment({id:'1',postId:'2',content:null,status:'deleted',createdAt:'2026-11-10T12:00:00Z',author:{id:'3',firstName:'Ana',lastName:'Pérez',email:'private'},parent:{id:'4',content:null},observation:'internal'});
   assert.equal(c.parent?.content,null); assert.equal(c.content,null); assert.equal('observation' in c,false); assert.equal('email' in c.author,false);
 });
 test('bandeja neutral acepta destino ausente y rechaza enlaces ajenos', () => {
-  const notice = {id:'1',type:'comentario',message:'Actividad',href:null,createdAt:'2026-11-10T12:00:00Z',readAt:null};
+  const notice = {id:'1',type:'comment',message:'Actividad',href:null,createdAt:'2026-11-10T12:00:00Z',readAt:null};
   assert.equal(parseNotifications({items:[notice],nextCursor:null,unreadCount:1}).items[0].href,null);
   assert.throws(() => parseNotifications({items:[{...notice,href:'https://evil.test'}],nextCursor:null,unreadCount:1}));
 });

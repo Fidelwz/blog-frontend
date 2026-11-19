@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "test:auth": "playwright test",
-    "test:ui": "playwright test tests/e2e/ui.spec.ts"
+    "test:ui": "playwright test tests/e2e/ui.spec.ts",
+    "test:comments": "playwright test --config playwright.comments.config.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.105.3",

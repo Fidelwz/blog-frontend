@@ -4,8 +4,6 @@ import { readFileSync } from 'node:fs';
 import { parsePost, parsePostPage, parseMyPostPage, parseAttachment } from '../src/features/publications/adapters.ts';
 import { parseGroup, parseGroups, parseMembers } from '../src/features/groups/adapters.ts';
 import { parseCategories } from '../src/features/categories/adapters.ts';
-import { parseComment, parseComments } from '../src/features/comments/adapters.ts';
-import { parseNotifications } from '../src/features/notifications/adapters.ts';
 
 type Fixture = { method: string; path: string; status: number; body: unknown };
 const fixtures = JSON.parse(readFileSync(new URL('../postman/contracts/community-http-fixtures.json', import.meta.url), 'utf8')) as { responses: Fixture[] };
@@ -21,10 +19,10 @@ const adapters: Record<string, (body: unknown) => unknown> = {
   'get /groups/{id}': parseGroup,
   'post /groups': parseGroup,
   'get /groups/{id}/members': parseMembers,
-  'get /posts/{id}/comments': parseComments,
-  'post /posts/{id}/comments': parseComment,
+  // Historical comment captures use author.name. Current Nest commit 39ebe974
+  // uses firstName and English states; comments.test.ts covers that contract.
   'post /posts/{id}/attachments': parseAttachment,
-  'get /notifications': parseNotifications,
+  // Historical Spanish notification fixtures are superseded by notifications.test.ts.
 };
 for (const [operation, parse] of Object.entries(adapters)) {
   test(`C01: adaptador acepta respuesta HTTP Nest capturada: ${operation}`, () => {

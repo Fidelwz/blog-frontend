@@ -3,6 +3,7 @@ import { defineConfig } from "@playwright/test";
 // Both servers are local and isolated. No test uses the real backend.
 export default defineConfig({
   testDir: "./tests/e2e",
+  testIgnore: "comments.spec.ts",
   workers: 1,
   retries: 0,
   timeout: 45_000,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type ComponentProps } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Mail, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,11 +46,12 @@ export function FormField({
     >
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <div className="relative">
+        {(props.type === "email" || revealPassword) && <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">{props.type === "email" ? <Mail size={18}/> : <LockKeyhole size={18}/>}</span>}
         <Input
           {...props}
           id={id}
           type={revealPassword ? (visible ? "text" : "password") : props.type}
-          className={cn("h-11", revealPassword && "pr-12", className)}
+          className={cn("h-11", (props.type === "email" || revealPassword) && "pl-10", revealPassword && "pr-12", className)}
           aria-invalid={!!error}
           aria-describedby={describedBy}
         />

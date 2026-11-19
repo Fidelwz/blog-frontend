@@ -39,7 +39,7 @@ const navigation: {
   { href: "/inicio", label: "Inicio", icon: "home", short: "Inicio" },
   {
     href: "/buscar",
-    label: "Explorar publicaciones",
+    label: "Explorar",
     icon: "compass",
     short: "Buscar",
   },
@@ -81,9 +81,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const hidePrivateContent =
     isPrivatePath(path) && !user && session.status !== "unavailable" && !hasEditorDocument(client);
   const active = (href: string) =>
-    path === href || (href === "/inicio" && path === "/");
+    path === href || (href !== "/inicio" && path.startsWith(href + "/")) || (href === "/inicio" && path === "/");
   return (
-    <>
+    <div className={user ? "app-shell" : "app-shell public-shell"}>
       <a href="#contenido" className="skip-link">
         Saltar al contenido
       </a>
@@ -97,7 +97,7 @@ export function Shell({ children }: { children: ReactNode }) {
             className="border-0 bg-transparent shadow-none"
             name="q"
             aria-label="Buscar publicaciones"
-            placeholder="Busca apuntes, publicaciones o materias…"
+            placeholder="Buscar publicaciones por título, contenido o categoría"
           />
           <kbd aria-hidden="true">↵</kbd>
         </form>
@@ -108,8 +108,8 @@ export function Shell({ children }: { children: ReactNode }) {
                 Iniciar sesión
               </Link>
               <Button asChild>
-                <Link prefetch={false} href="/acceso">
-                  Acceder <Icon name="arrow" size={16} />
+                <Link prefetch={false} href="/registro">
+                  Crear cuenta
                 </Link>
               </Button>
             </>
@@ -121,7 +121,7 @@ export function Shell({ children }: { children: ReactNode }) {
                   href="/notificaciones"
                   aria-label="Ver notificaciones"
                 >
-                  <Icon name="bell" />
+                  <Icon name="bell" /><NotificationCount/>
                 </Link>
               </Button>
               <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
@@ -181,7 +181,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <aside className="sidebar">
-        <span className="nav-caption">TU ESPACIO ACADÉMICO</span>
+        <span className="nav-caption">COMUNIDAD</span>
         <nav aria-label="Navegación principal">
           {navigation.map((item) => (
             <Link
@@ -212,7 +212,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <span className="sidebar-copyright">© 2026 Blog Interactivo</span>
         </div>
       </aside>
-      <main id="contenido" className="main-area">
+      <main id="contenido" className="main-area" data-section={path.split("/")[1] || "publico"}>
         <div className="page-inner">
           {logoutError && <Notice kind="error">{logoutError}</Notice>}
           {notice && (
@@ -271,6 +271,6 @@ export function Shell({ children }: { children: ReactNode }) {
             </Link>
           ))}
       </nav>
-    </>
+    </div>
   );
 }

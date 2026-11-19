@@ -33,7 +33,7 @@ export function MyPublications({ ownerId, status }: { ownerId: string; status: s
   if (!active) return <Notice>Inicia sesión para consultar tus publicaciones.</Notice>;
   const posts = new Map(feed.data?.pages.flatMap(page => page.elementos).map(post => [post.id, post]));
   return <section aria-label="Mis publicaciones" aria-busy={feed.isFetching}>
-    <h1>Mis publicaciones</h1>
+    <div className="page-heading"><h1>Mis publicaciones</h1><p>Gestiona tus aportes y consulta su estado en la comunidad.</p></div>
     <Button asChild><Link href="/publicaciones/nueva">Crear publicación</Link></Button>
     <form action="/mis-publicaciones" className="my-4 flex flex-wrap items-center gap-3">
       <label htmlFor="my-posts-status">Estado</label>
@@ -44,7 +44,7 @@ export function MyPublications({ ownerId, status }: { ownerId: string; status: s
     {feed.error && <Notice kind="error">{feed.error.message} <Button variant="outline" onClick={() => feed.isFetchNextPageError ? void feed.fetchNextPage() : void feed.refetch()}>Reintentar</Button></Notice>}
     {!feed.isPending && !feed.error && !posts.size && <Notice>No tienes publicaciones en este estado.</Notice>}
     <div className="feed">{[...posts.values()].map(post => <article key={post.id}><Card className="publication-card gap-3 p-5">
-      <p>{labels[post.status]} · {post.category.name} · {post.groupId ? "Publicación de grupo" : "Pública"}</p>
+      <div className="flex flex-wrap items-center gap-2"><span className={`status-chip status-${post.status}`}>{labels[post.status]}</span><span className="category-tag">{post.category.name}</span><span className="text-xs text-muted-foreground">{post.groupId ? "Publicación de grupo" : "Pública"}</span></div>
       <h2>{post.status === "eliminado" ? post.title : <Link href={`/publicaciones/${post.id}`} prefetch={false}>{post.title}</Link>}</h2>
       <p>{post.excerpt}</p><time dateTime={post.createdAt}>{new Intl.DateTimeFormat("es", { timeZone: "UTC", dateStyle: "medium" }).format(new Date(post.createdAt))}</time>
       <p>{post.commentCount} comentarios registrados · {post.attachmentCount} recursos</p>

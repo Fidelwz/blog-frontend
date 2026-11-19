@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-page-custom-font -- App Router root layout persists this stylesheet across every route. */
 import type { Metadata } from "next";
 import "./globals.css";
 import { dehydrate } from "@tanstack/react-query";
@@ -10,5 +11,5 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const { session, updatedAt } = await getSessionSnapshot();
   const client = createQueryClient();
   client.setQueryData(sessionKey, session, { updatedAt });
-  return <html lang="es"><body><AppProviders state={dehydrate(client)}>{children}</AppProviders></body></html>;
+  return <html lang="es"><head><link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/></head><body><AppProviders state={dehydrate(client)}>{children}</AppProviders></body></html>;
 }

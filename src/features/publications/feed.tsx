@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { MessageSquare, Paperclip } from "lucide-react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { createApiClient } from "../../lib/api/client.ts";
 import type { FeedPage } from "./server.ts";
@@ -23,7 +24,7 @@ export function PublicFeed({ query, categoryId, initialPage }: { query: string; 
     },
     getNextPageParam: page => page.siguienteCursor ?? undefined,
     initialData: initialPage ? { pages: [initialPage], pageParams: [null] } : undefined,
-    staleTime: 30000, retry: false,
+    staleTime: 15000, retry: false, refetchInterval:15000, refetchIntervalInBackground:false,
   });
   const unique = new Map(feed.data?.pages.flatMap(page => page.elementos).map(p => [p.id, p]));
   return <section aria-label="Publicaciones" aria-busy={feed.isFetching}>
@@ -36,7 +37,7 @@ export function PublicFeed({ query, categoryId, initialPage }: { query: string; 
         <div className="author"><Link href={`/usuarios/${post.author.id}`}>{post.author.firstName} {post.author.lastName}</Link><time dateTime={post.createdAt}>{new Intl.DateTimeFormat("es", { timeZone: "UTC", dateStyle: "medium" }).format(new Date(post.createdAt))}</time></div>
         <Link href={`/buscar?categoryId=${post.category.id}`}>{post.category.name}</Link></div>
       <Link href={`/publicaciones/${post.id}`} className="article-link" prefetch={false}><h2>{post.title}</h2><p>{post.excerpt}</p></Link>
-      <div className="post-bottom"><span>{post.commentCount} comentarios</span><span>{post.attachmentCount} recursos</span><Link href={`/publicaciones/${post.id}`} prefetch={false}>Leer publicación →</Link></div>
+      <div className="post-bottom"><span><MessageSquare size={16}/>{post.commentCount} comentarios</span><span><Paperclip size={16}/>{post.attachmentCount} recursos</span><Link href={`/publicaciones/${post.id}`} prefetch={false}>Leer publicación</Link></div>
     </Card></article>)}</div>
     {feed.hasNextPage && <Button variant="outline" className="load-more" disabled={feed.isFetching} onClick={() => void feed.fetchNextPage()}>{feed.isFetchingNextPage ? "Cargando…" : "Cargar más publicaciones"}</Button>}
   </section>;
